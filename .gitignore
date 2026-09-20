@@ -46,3 +46,11 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Supabase local dev
+supabase/.branches/
+supabase/.temp/
+supabase/functions/.env
+supabase/functions/**/.env
+.env
+.env.local

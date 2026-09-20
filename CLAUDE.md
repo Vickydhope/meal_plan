@@ -1,0 +1,104 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+A Flutter calorie-tracking app ("Calorie Tracker"). Users snap a photo of a meal, it's uploaded to Supabase Storage and sent to a Supabase Edge Function that calls Gemini for nutrition analysis, and the result is reviewed/edited before being saved as a meal log row.
+
+## Commands
+
+```bash
+flutter pub get                     # install dependencies
+flutter analyze                     # static analysis (flutter_lints)
+flutter test                        # run all tests
+flutter test test/path/to/file.dart # run a single test file
+scripts/run_dev.sh                  # run the dev flavor (local Supabase stack) on a connected device/simulator
+scripts/run_prod.sh                 # run the prod flavor (live Supabase project) on a connected device/simulator
+```
+
+The app uses Android/iOS build flavors (`dev`/`prod`) — `--flavor` is required for `flutter run`/`flutter build` now that `productFlavors` exist. `dev` and `prod` install side-by-side (separate applicationId/bundle id, "Calorie Tracker (Dev)" vs "Calorie Tracker" display name). `scripts/run_dev.sh`/`run_prod.sh` wrap the full `--flavor` + `--dart-define-from-file` invocation; the equivalent explicit form is `flutter run --flavor dev --dart-define-from-file=dart_defines/dev.json` / `--flavor prod --dart-define-from-file=dart_defines/prod.json`.
+
+Tests live under `test/`, mirroring the `lib/` path of what they cover. Domain use cases and repositories are tested with `mocktail` mocks against the abstract repository interfaces — no real Supabase/network calls in unit tests.
+
+### Supabase Edge Function (`supabase/functions/analyze-food`)
+
+Deployed via the Supabase MCP tools or `supabase functions deploy analyze-food`. Requires the `GEMINI_API_KEY` secret to be set in the Supabase project. Written in Deno/TypeScript.
+
+### Local Supabase stack
+
+Requires Docker (or a Docker-API-compatible runtime like Colima) running, and the Supabase CLI (`brew install supabase/tap/supabase`).
+
+```bash
+supabase start                                                            # boot local Postgres/Auth/Storage/Studio
+supabase stop                                                             # tear it down
+supabase db reset                                                        # drop, re-run all migrations, re-run seed.sql
+supabase functions serve analyze-food --env-file supabase/functions/.env # serve the edge function locally, real Gemini calls
+scripts/run_dev.sh                                                        # dev flavor, local Supabase stack
+scripts/run_prod.sh                                                       # prod flavor, live Supabase project
+# equivalent explicit form:
+flutter run --flavor dev  --dart-define-from-file=dart_defines/dev.json
+flutter run --flavor prod --dart-define-from-file=dart_defines/prod.json
+```
+
+`127.0.0.1` only reaches the local stack from the same machine — override the host for other run targets via `SUPABASE_LOCAL_HOST`:
+
+```bash
+flutter run --flavor dev --dart-define-from-file=dart_defines/dev.json --dart-define=SUPABASE_LOCAL_HOST=10.0.2.2       # Android emulator
+flutter run --flavor dev --dart-define-from-file=dart_defines/dev.json --dart-define=SUPABASE_LOCAL_HOST=192.168.1.6    # physical device, same Wi-Fi as this Mac — use `ipconfig getifaddr en0` to find your current IP
+```
+
+`supabase/functions/.env` (gitignored, not committed) must contain your own `GEMINI_API_KEY=...` for locally-served function calls to reach Gemini. Studio UI: http://127.0.0.1:54323. Inbucket (test email catcher; only relevant if `enable_confirmations` is re-enabled in `supabase/config.toml`): http://127.0.0.1:54324. Seeded login (from `supabase/seed.sql`, applied on `supabase db reset`): `dev@example.com` / `password123`.
+
+## Architecture
+
+The app follows **clean architecture**: each feature is split into `domain` (business rules, no Flutter/Supabase imports), `data` (implements domain interfaces against Supabase), and `presentation` (Riverpod state + widgets). Dependencies only point inward — `presentation` depends on `domain`, `data` depends on `domain`, but `domain` depends on nothing in this app.
+
+```
+lib/
+  core/                        # cross-cutting, not specific to any feature
+    config/supabase_config.dart
+    error/app_exception.dart   # AppException hierarchy thrown by repositories
+    auth/                      # AuthRepository (domain) + SupabaseAuthRepository (impl)
+    providers/core_providers.dart  # supabaseClientProvider, authRepositoryProvider
+  features/meal_log/
+    domain/
+      entities/                # MealLog, MealAnalysisItem, PendingMealAnalysis, UserProfile
+      repositories/            # abstract MealLogRepository, ImageRepository, FoodAnalysisRepository, ProfileRepository
+      usecases/                # one class per operation, e.g. AnalyzeMealPhotoUseCase, ConfirmMealLogUseCase
+    data/
+      models/                  # DTOs: fromMap/toMap <-> toEntity/fromEntity conversions
+      datasources/             # thin wrappers around SupabaseClient / flutter_image_compress
+      repositories/            # *RepositoryImpl, implement the domain interfaces
+    presentation/
+      state/meal_log_state.dart
+      notifiers/meal_log_notifier.dart   # depends only on use cases + AuthRepository
+      providers/meal_log_providers.dart  # DI wiring: binds datasource -> repo -> usecase -> notifier
+      screens/                 # AppShell, HomeScreen, CameraScanScreen, ScanResultScreen, PlanScreen
+  shared/widgets/               # CalorieRing, MacroRing, WeekStrip — presentation-only, feature-agnostic
+```
+
+**Dependency injection** is done with Riverpod providers, not a separate service locator: `core/providers/core_providers.dart` and each feature's `presentation/providers/*_providers.dart` are the composition root, wiring concrete `data` implementations to the `domain` interfaces the `presentation` layer and use cases depend on. A `Notifier` pulls its dependencies from providers via its own `ref` (not constructor injection — `NotifierProvider` only supports a zero-arg constructor).
+
+**Client → Storage → Edge Function → Gemini** is the core data flow for meal logging:
+
+1. `CameraScanScreen` captures a photo with `package:camera`.
+2. `MealLogNotifier.analyzeCapturedPhoto` calls `AnalyzeMealPhotoUseCase`, which compresses the photo client-side to under 200KB JPEG (`ImageRepository.compressImage`), uploads it to the `food-images` Storage bucket under `<userId>/<timestamp>.jpg`, then calls the `analyze-food` Edge Function via `FoodAnalysisRepository.analyze`.
+3. The Edge Function (`supabase/functions/analyze-food/index.ts`) forwards the image to Gemini with a fixed JSON response schema (meal name, per-item macros, health score), retrying on `429`/`503` with exponential backoff (up to 5 attempts).
+4. The result becomes a `PendingMealAnalysis` entity — *not* yet persisted. The user reviews/edits it on `ScanResultScreen` (adjust meal name, per-ingredient portion multipliers via `MealAnalysisItem.portion`) before confirming.
+5. `ConfirmMealLogUseCase` inserts the finalized totals into the `meal_logs` table via `MealLogRepository`. `DiscardPendingMealUseCase` removes the orphaned Storage upload if the user backs out.
+
+**State management**: Riverpod (`flutter_riverpod`), single `NotifierProvider` (`mealLogProvider` → `MealLogNotifier`) holding all meal-log/profile state (`MealLogState`). The notifier is a thin orchestrator — all Supabase-specific logic lives in `data/`.
+
+**Backend**: Supabase Postgres with `meal_logs` and `profiles` tables (see `MealLogDto`/`UserProfileDto` in `data/models/` for the expected schema, and `supabase/migrations/` for the versioned schema — a `supabase db reset` against the local stack replays these from scratch). Auth is email/password (`AuthRepository.signUpWithEmail`/`signInWithEmail`/`signOut`, `lib/core/auth/`), reactively gated via `AuthRepository.userIdChanges` in the router. `main.dart` is the only place allowed to touch `Supabase.initialize`/`Supabase.instance` directly — everywhere else goes through `core/providers/core_providers.dart`.
+
+**Navigation**: No router package is wired up despite `go_router` being a dependency — navigation is plain `Navigator.push`/`pushReplacement` between `AppShell` (bottom-nav shell with tabs `HomeScreen`/`PlanScreen` and a center camera FAB), `CameraScanScreen`, and `ScanResultScreen`.
+
+**Adding a new feature**: mirror the `meal_log` structure — domain entities/repositories/usecases first (pure Dart), then data DTOs/datasources/repository impls, then presentation state/notifier/providers/screens. Keep `domain` free of Flutter and Supabase imports so use cases stay unit-testable without mocks for infra.
+
+`PlanScreen` is a stub ("Meal plans coming soon").
+
+## Config
+
+- `lib/core/config/supabase_config.dart` selects the Supabase URL/publishable (anon) key at build time via `--dart-define=SUPABASE_ENV=local|prod` (defaults to `local`) — both keys are anon keys, safe to be client-side. Normally supplied via `dart_defines/dev.json`/`dart_defines/prod.json` + the matching `--flavor` (or `scripts/run_dev.sh`/`run_prod.sh`); a manual `--dart-define=SUPABASE_ENV=...` still works as an override.
+- The Gemini API key lives only as a Supabase Edge Function secret (or, for local dev, `supabase/functions/.env`), never in the Flutter client.

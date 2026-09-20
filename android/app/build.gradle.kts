@@ -14,6 +14,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    buildFeatures {
+        resValues = true
+    }
+
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.doops.meal_plan"
@@ -27,6 +31,20 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    flavorDimensions += "env"
+    productFlavors {
+        create("dev") {
+            dimension = "env"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            resValue("string", "app_name", "Calorie Tracker (Dev)")
+        }
+        create("prod") {
+            dimension = "env"
+            resValue("string", "app_name", "Calorie Tracker")
+        }
     }
 
     buildTypes {

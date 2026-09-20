@@ -1,18 +1,26 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
+const RATE_LIMIT_MAX_REQUESTS = 20;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+// Client compresses to <200KB JPEG; this is a generous server-side ceiling
+// independent of that, not the expected steady-state size.
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+
+// `items` is declared right after `meal_name` and before the aggregate
+// fields, since Gemini's structured output tends to fill fields in
+// schema-declaration order — this lets the meal name and each ingredient
+// stream out before the totals that depend on them.
 const RESPONSE_SCHEMA = {
   type: "object",
   properties: {
     meal_name: { type: "string" },
-    health_score: { type: "number" },
-    total_calories: { type: "number" },
-    total_protein_g: { type: "number" },
-    total_carbs_g: { type: "number" },
-    total_fats_g: { type: "number" },
     items: {
       type: "array",
       items: {
@@ -35,15 +43,20 @@ const RESPONSE_SCHEMA = {
         ],
       },
     },
+    health_score: { type: "number" },
+    total_calories: { type: "number" },
+    total_protein_g: { type: "number" },
+    total_carbs_g: { type: "number" },
+    total_fats_g: { type: "number" },
   },
   required: [
     "meal_name",
+    "items",
     "health_score",
     "total_calories",
     "total_protein_g",
     "total_carbs_g",
     "total_fats_g",
-    "items",
   ],
 };
 
@@ -55,20 +68,222 @@ const PROMPT =
   "totals for calories, protein, carbs, and fats across all items. Also " +
   "give a health_score from 1 (unhealthy) to 10 (very healthy) based on " +
   "nutrient balance, processing level, and portion size. Respond with " +
-  "realistic estimates even if uncertain.";
+  "realistic estimates even if uncertain. If the image does not show any " +
+  "food or drink at all, return an empty items array, set meal_name to " +
+  "'No food detected', and set all totals and health_score to 0 — do not " +
+  "invent food items that aren't actually present in the image.";
+
+const RETRYABLE_STATUSES = new Set([429, 503]);
+const MAX_ATTEMPTS = 5;
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+const sseHeaders = {
+  ...corsHeaders,
+  "Content-Type": "text/event-stream",
+  "Cache-Control": "no-cache",
+  Connection: "keep-alive",
+};
+
+function sseEvent(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+/**
+ * Scans the accumulated response text for JSON values that have just
+ * closed, tracking bracket/quote depth rather than doing a full parse on
+ * every delta (the overall JSON document is still open).
+ */
+class IncrementalJsonScanner {
+  #mealNameSent = false;
+  #itemsSeen = 0;
+
+  /**
+   * Pulls out the `meal_name` string value and any newly complete objects
+   * inside the `items` array from the accumulated text, invoking
+   * onMealName/onItem at most once each per new value found.
+   */
+  scan(
+    buffer: string,
+    onMealName: (name: string) => void,
+    onItem: (item: Record<string, unknown>) => void,
+  ) {
+    if (!this.#mealNameSent) {
+      const match = /"meal_name"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(buffer);
+      if (match) {
+        this.#mealNameSent = true;
+        onMealName(JSON.parse(`"${match[1]}"`));
+      }
+    }
+
+    const itemsStart = buffer.indexOf('"items"');
+    if (itemsStart === -1) return;
+    const arrayStart = buffer.indexOf("[", itemsStart);
+    if (arrayStart === -1) return;
+
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    let objectStart = -1;
+    let objectsSeen = 0;
+
+    for (let i = arrayStart; i < buffer.length; i++) {
+      const char = buffer[i];
+
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (char === "\\") {
+          escaped = true;
+        } else if (char === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (char === '"') {
+        inString = true;
+      } else if (char === "{") {
+        // depth is 0 here for an item's own opening brace (we're directly
+        // inside the items array, one level in) — check before incrementing.
+        if (depth === 0 && objectStart === -1) objectStart = i;
+        depth++;
+      } else if (char === "}") {
+        depth--;
+        // Symmetric with the open-brace check above: back to depth 0 means
+        // this closed an item object, not some field nested inside one.
+        if (depth === 0 && objectStart !== -1) {
+          objectsSeen++;
+          if (objectsSeen > this.#itemsSeen) {
+            try {
+              const item = JSON.parse(buffer.slice(objectStart, i + 1));
+              this.#itemsSeen = objectsSeen;
+              onItem(item);
+            } catch {
+              // Incomplete/malformed — wait for more text.
+            }
+          }
+          objectStart = -1;
+        }
+      } else if (char === "]" && depth === 0) {
+        break;
+      }
+    }
+  }
+}
+
+async function callGeminiStream(
+  payload: unknown,
+): Promise<ReadableStream<Uint8Array> | { error: string; detail: string }> {
+  let lastDetail = "";
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    let res: Response | undefined;
+    try {
+      res = await fetch(`${GEMINI_URL}?alt=sse&key=${GEMINI_API_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      lastDetail = `${err}`;
+      res = undefined;
+    }
+
+    if (res?.ok && res.body) return res.body;
+
+    if (
+      attempt < MAX_ATTEMPTS &&
+      (res === undefined || RETRYABLE_STATUSES.has(res.status))
+    ) {
+      if (res) lastDetail = await res.text();
+      await new Promise((resolve) =>
+        setTimeout(resolve, 1000 * 2 ** (attempt - 1)),
+      );
+      continue;
+    }
+
+    if (res) lastDetail = await res.text();
+    return { error: "Gemini API error", detail: lastDetail };
+  }
+
+  return { error: "Gemini API error", detail: lastDetail };
+}
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   if (!GEMINI_API_KEY) {
     return new Response(
       JSON.stringify({ error: "GEMINI_API_KEY not configured" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Scoped to the caller's own JWT (not the service role), so the rate-limit
+  // queries below run under RLS as this specific user.
+  const supabase = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    return new Response(JSON.stringify({ error: "Invalid or expired session" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const userId = userData.user.id;
+
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
+  const { count, error: countError } = await supabase
+    .from("food_analysis_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", windowStart);
+
+  if (countError) {
+    console.error("Rate limit check failed:", countError);
+    return new Response(JSON.stringify({ error: "Failed to check rate limit" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if ((count ?? 0) >= RATE_LIMIT_MAX_REQUESTS) {
+    return new Response(
+      JSON.stringify({
+        error: "You've hit the hourly limit for meal scans. Try again later.",
+      }),
+      {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 
@@ -78,7 +293,7 @@ Deno.serve(async (req: Request) => {
   } catch {
     return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
       status: 400,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -86,8 +301,31 @@ Deno.serve(async (req: Request) => {
   if (!image || typeof image !== "string") {
     return new Response(
       JSON.stringify({ error: "Missing 'image' (base64 string) in body" }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
+      {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
+  }
+
+  // Base64 encodes 3 bytes as 4 chars, so decoded size ~= length * 0.75.
+  const approxImageBytes = image.length * 0.75;
+  if (approxImageBytes > MAX_IMAGE_BYTES) {
+    return new Response(JSON.stringify({ error: "Image payload too large" }), {
+      status: 413,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const { error: insertError } = await supabase
+    .from("food_analysis_requests")
+    .insert({ user_id: userId });
+  if (insertError) {
+    console.error("Failed to log analysis request:", insertError);
+    return new Response(JSON.stringify({ error: "Failed to process request" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   const geminiPayload = {
@@ -110,71 +348,81 @@ Deno.serve(async (req: Request) => {
     },
   };
 
-  const RETRYABLE_STATUSES = new Set([429, 503]);
-  const MAX_ATTEMPTS = 5;
-
-  let geminiRes: Response | undefined;
-  let lastDetail = "";
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      geminiRes = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(geminiPayload),
-      });
-    } catch (err) {
-      lastDetail = `${err}`;
-      geminiRes = undefined;
-    }
-
-    if (geminiRes?.ok) break;
-
-    if (
-      attempt < MAX_ATTEMPTS &&
-      (geminiRes === undefined || RETRYABLE_STATUSES.has(geminiRes.status))
-    ) {
-      if (geminiRes) lastDetail = await geminiRes.text();
-      await new Promise((resolve) =>
-        setTimeout(resolve, 1000 * 2 ** (attempt - 1)),
-      );
-      continue;
-    }
-
-    if (geminiRes) lastDetail = await geminiRes.text();
-    break;
+  const geminiStream = await callGeminiStream(geminiPayload);
+  if (!(geminiStream instanceof ReadableStream)) {
+    console.error("Gemini API error:", geminiStream.detail);
+    return new Response(JSON.stringify(geminiStream), {
+      status: 502,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
-  if (!geminiRes?.ok) {
-    console.error("Gemini API error:", geminiRes?.status, lastDetail);
-    return new Response(
-      JSON.stringify({ error: "Gemini API error", detail: lastDetail }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  const scanner = new IncrementalJsonScanner();
+  let textBuffer = ""; // accumulated `text` deltas from Gemini's parts
+  let sseLineBuffer = ""; // raw bytes from Gemini's own SSE framing
 
-  const geminiJson = await geminiRes.json();
-  const rawText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const outStream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      const emit = (event: string, data: unknown) =>
+        controller.enqueue(encoder.encode(sseEvent(event, data)));
 
-  if (!rawText || typeof rawText !== "string") {
-    return new Response(
-      JSON.stringify({ error: "Gemini returned no analyzable content" }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
+      try {
+        const reader = geminiStream.getReader();
+        const decoder = new TextDecoder();
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(rawText);
-  } catch {
-    return new Response(
-      JSON.stringify({ error: "Gemini output was not valid JSON", raw: rawText }),
-      { status: 502, headers: { "Content-Type": "application/json" } },
-    );
-  }
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-  return new Response(JSON.stringify(parsed), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
+          sseLineBuffer += decoder.decode(value, { stream: true });
+          const lines = sseLineBuffer.split("\n");
+          sseLineBuffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data:")) continue;
+            const payload = line.slice(5).trim();
+            if (!payload || payload === "[DONE]") continue;
+
+            let chunk: unknown;
+            try {
+              chunk = JSON.parse(payload);
+            } catch {
+              continue;
+            }
+
+            const delta =
+              // deno-lint-ignore no-explicit-any
+              (chunk as any)?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (typeof delta !== "string") continue;
+
+            textBuffer += delta;
+            scanner.scan(
+              textBuffer,
+              (name) => emit("meal_name", { name }),
+              (item) => emit("item", item),
+            );
+          }
+        }
+
+        const parsed = JSON.parse(textBuffer);
+        if (!Array.isArray(parsed.items) || parsed.items.length === 0) {
+          emit("error", {
+            message:
+              "No food was detected in this photo. Try again with a " +
+              "clearer picture of your meal.",
+          });
+        } else {
+          emit("done", parsed);
+        }
+      } catch (err) {
+        console.error("Streaming analyze-food failed:", err);
+        emit("error", { message: `${err}` });
+      } finally {
+        controller.close();
+      }
+    },
   });
+
+  return new Response(outStream, { status: 200, headers: sseHeaders });
 });
