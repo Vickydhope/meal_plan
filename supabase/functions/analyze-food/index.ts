@@ -391,17 +391,28 @@ Deno.serve(async (req: Request) => {
               continue;
             }
 
-            const delta =
-              // deno-lint-ignore no-explicit-any
-              (chunk as any)?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (typeof delta !== "string") continue;
+            // deno-lint-ignore no-explicit-any
+            const parts = (chunk as any)?.candidates?.[0]?.content?.parts;
+            if (!Array.isArray(parts)) continue;
 
-            textBuffer += delta;
-            scanner.scan(
-              textBuffer,
-              (name) => emit("meal_name", { name }),
-              (item) => emit("item", item),
-            );
+            for (const part of parts) {
+              // Thinking-capable models can stream a "thought" (reasoning)
+              // part alongside the actual JSON output part. That prose
+              // isn't part of the structured response — feeding it into
+              // textBuffer lets the incremental scanner below match a
+              // stray quote inside it as a fake `meal_name` closing quote,
+              // briefly showing garbled text instead of the real name.
+              if (part?.thought) continue;
+              const delta = part?.text;
+              if (typeof delta !== "string") continue;
+
+              textBuffer += delta;
+              scanner.scan(
+                textBuffer,
+                (name) => emit("meal_name", { name }),
+                (item) => emit("item", item),
+              );
+            }
           }
         }
 

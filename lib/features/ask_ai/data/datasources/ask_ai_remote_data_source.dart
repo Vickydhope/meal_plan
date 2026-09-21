@@ -19,6 +19,8 @@ class AskAiRemoteDataSource {
   Stream<Map<String, dynamic>> streamAskAi({
     required String question,
     required List<Map<String, String>> history,
+    required String dayStartUtc,
+    required String dayEndUtc,
   }) async* {
     final uri = Uri.parse('${SupabaseConfig.url}/functions/v1/ask-ai');
     final token =
@@ -31,7 +33,12 @@ class AskAiRemoteDataSource {
         'apikey': SupabaseConfig.anonKey,
         'Authorization': 'Bearer $token',
       })
-      ..body = jsonEncode({'question': question, 'history': history});
+      ..body = jsonEncode({
+        'question': question,
+        'history': history,
+        'dayStart': dayStartUtc,
+        'dayEnd': dayEndUtc,
+      });
 
     final response = await http.Client().send(request);
     if (response.statusCode != 200) {

@@ -13,16 +13,31 @@ const MAX_QUESTION_LENGTH = 1000;
 const MAX_HISTORY_MESSAGES = 20;
 
 const SYSTEM_PROMPT =
-  "You are the in-app nutrition assistant for a calorie-tracking app. " +
-  "Answer the user's question about nutrition, their meals, or their " +
-  "plan. You're given the user's daily calorie target, goal, and a " +
+  "You are Cravia, the in-app nutrition assistant for the Cravia " +
+  "calorie-tracking app. If asked your name or who you are, answer " +
+  "'Cravia' — don't call yourself a generic assistant or mention Gemini " +
+  "or Google. Answer the user's question about nutrition, their meals, " +
+  "or their plan. You're given the user's daily calorie target, goal, and a " +
   "summary of what they've eaten today (if any) as context below — use " +
   "it to personalize your answer when relevant, but don't recite it back " +
-  "verbatim unless asked. Keep answers conversational and concise (a " +
-  "few sentences, occasionally a short list). If the context is missing " +
-  "or doesn't cover the question, answer from general nutrition " +
-  "knowledge instead. Never invent specific numbers for the user's own " +
-  "data that weren't given to you.";
+  "verbatim unless asked. The Context block below is recomputed fresh " +
+  "from the database on every single message in this conversation. If it " +
+  "conflicts with anything you or the user said earlier in this chat " +
+  "(e.g. a meal total that has since changed because a meal was edited " +
+  "or deleted), the Context below is always correct — silently use it " +
+  "and never defend, repeat, or reconcile an earlier stated number. Keep " +
+  "answers conversational and concise (a few sentences, occasionally a " +
+  "short list). If the context is missing or doesn't cover the " +
+  "question, answer from general nutrition knowledge instead. Never " +
+  "invent specific numbers for the user's own data that weren't given " +
+  "to you. Stay strictly within Cravia's purpose: nutrition, food, meals, " +
+  "calories, macros, diet and eating habits, and how to use this app's " +
+  "meal-logging features. If asked anything outside that scope (general " +
+  "knowledge, coding, entertainment, current events, or any other " +
+  "unrelated topic), don't answer it — reply with one short, friendly " +
+  "sentence declining and steering back to nutrition, e.g. \"I'm just " +
+  "here for nutrition and meal tracking — ask me about your meals, " +
+  "macros, or what to eat next!\"";
 
 const RETRYABLE_STATUSES = new Set([429, 503]);
 const MAX_ATTEMPTS = 5;
@@ -182,6 +197,8 @@ Deno.serve(async (req: Request) => {
   let body: {
     question?: string;
     history?: Array<{ role?: string; text?: string }>;
+    dayStart?: string;
+    dayEnd?: string;
   };
   try {
     body = await req.json();
@@ -216,8 +233,40 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(500, { error: "Failed to process request" });
   }
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  // The edge runtime's own clock has no notion of the user's timezone, so
+  // computing "today" here (e.g. via `new Date().setHours(0,0,0,0)`, which
+  // runs in the runtime's own UTC clock) drifts from what the client's
+  // dashboard considers "today" for anyone off UTC. The client sends its
+  // local midnight boundaries (converted to UTC), computed the same way as
+  // MealLogRepositoryImpl.fetchLogsForDate; only fall back to a UTC day if
+  // they're missing or malformed.
+  const clientDayStart = typeof body.dayStart === "string"
+    ? new Date(body.dayStart)
+    : null;
+  const clientDayEnd = typeof body.dayEnd === "string"
+    ? new Date(body.dayEnd)
+    : null;
+  const hasValidClientDayBounds = clientDayStart !== null &&
+    !Number.isNaN(clientDayStart.getTime()) &&
+    clientDayEnd !== null &&
+    !Number.isNaN(clientDayEnd.getTime());
+
+  const dayStart = hasValidClientDayBounds ? clientDayStart! : (() => {
+    const d = new Date();
+    d.setUTCHours(0, 0, 0, 0);
+    return d;
+  })();
+  const dayEnd = hasValidClientDayBounds ? clientDayEnd! : null;
+
+  let todayLogsQuery = supabase
+    .from("meal_logs")
+    .select("meal_name, total_calories, total_protein, total_carbs, total_fats")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .gte("created_at", dayStart.toISOString());
+  if (dayEnd) {
+    todayLogsQuery = todayLogsQuery.lt("created_at", dayEnd.toISOString());
+  }
 
   const [{ data: profile }, { data: todayLogs }] = await Promise.all([
     supabase
@@ -225,18 +274,14 @@ Deno.serve(async (req: Request) => {
       .select("daily_calorie_target, goal, activity_level")
       .eq("id", userId)
       .maybeSingle(),
-    supabase
-      .from("meal_logs")
-      .select("meal_name, total_calories, total_protein, total_carbs, total_fats")
-      .eq("user_id", userId)
-      .gte("created_at", todayStart.toISOString()),
+    todayLogsQuery,
   ]);
 
   const contextBlock = buildContextBlock(profile ?? null, todayLogs ?? []);
 
   const geminiPayload = {
     systemInstruction: {
-      parts: [{ text: `${SYSTEM_PROMPT}\n\nContext:\n${contextBlock}` }],
+      parts: [{ text: `${SYSTEM_PROMPT}\n\nContext (live, as of this message):\n${contextBlock}` }],
     },
     contents: [
       ...history.map((message) => ({

@@ -321,27 +321,25 @@ class _MealSectionCard extends StatelessWidget {
   }
 }
 
-/// Removes [log] via [MealLogNotifier.removeMealLogLocally] (an immediate,
-/// local-only removal), then shows an "Undo" snackbar — the backend delete
-/// ([MealLogNotifier.commitDeleteMealLog]) only fires once that snackbar
-/// closes without Undo being tapped. Mirrors the ingredient-removal flow on
-/// CameraScanScreen (see `camera_scan/ingredients_section.dart`).
-void _deleteMealWithUndo(BuildContext context, WidgetRef ref, MealLog log) {
+/// Removes [log] via [MealLogNotifier.deleteMealLog] — an immediate
+/// soft-delete, both locally and in the backend — then shows an "Undo"
+/// snackbar. The snackbar is purely an undo affordance here; unlike a
+/// deferred-commit design, the deletion is already persisted by the time
+/// it appears, so nothing reading fresh data can observe a stale total.
+Future<void> _deleteMealWithUndo(
+  BuildContext context,
+  WidgetRef ref,
+  MealLog log,
+) async {
   final notifier = ref.read(mealLogProvider.notifier);
-  final index = notifier.removeMealLogLocally(log);
-  if (index == null) return;
+  final index = await notifier.deleteMealLog(log);
+  if (index == null || !context.mounted) return;
 
-  var undone = false;
   showUndoSnackBar(
     context,
     message: 'Removed ${log.mealName}',
-    onUndo: () {
-      undone = true;
-      notifier.restoreMealLog(index, log);
-    },
-  ).closed.then((_) {
-    if (!undone) notifier.commitDeleteMealLog(log, index);
-  });
+    onUndo: () => notifier.restoreMealLog(index, log),
+  );
 }
 
 /// Swipe-left-to-delete wrapper around a meal row — see
@@ -425,27 +423,13 @@ class _MealItemRow extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          log.mealName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Text(
-                        '${log.createdAt.hour.toString().padLeft(2, '0')}:'
-                        '${log.createdAt.minute.toString().padLeft(2, '0')}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    log.mealName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(

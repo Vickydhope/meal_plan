@@ -18,6 +18,9 @@ abstract class MealLogRepository {
   /// Deletes the meal log with [logId].
   Future<void> deleteMealLog(String logId);
 
+  /// Reverses [deleteMealLog] for [logId].
+  Future<void> restoreMealLog(String logId);
+
   /// Persists edits to an existing meal log, returning the updated entity.
   Future<MealLog> updateMealLog(MealLog log);
 }

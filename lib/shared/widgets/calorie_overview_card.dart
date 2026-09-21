@@ -84,6 +84,9 @@ class _MacroColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isOverTarget = stat.target > 0 && stat.value > stat.target;
+    final barColor = isOverTarget ? AppColors.error : stat.color;
+
     return Column(
       children: [
         Container(
@@ -105,17 +108,52 @@ class _MacroColumn extends StatelessWidget {
           TextSpan(
             children: [
               TextSpan(
-                text: '${stat.value} g',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                text: '${stat.value}',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: isOverTarget ? AppColors.error : null,
+                ),
               ),
               TextSpan(
-                text: ' / ${stat.target} g',
+                text: '/${stat.target}g',
                 style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
               ),
             ],
           ),
         ),
+        const SizedBox(height: 6),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: _MacroProgressBar(
+            progress: stat.target <= 0 ? 0 : stat.value / stat.target,
+            color: barColor,
+          ),
+        ),
       ],
+    );
+  }
+}
+
+class _MacroProgressBar extends StatelessWidget {
+  const _MacroProgressBar({required this.progress, required this.color});
+
+  final double progress;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(2),
+      child: SizedBox(
+        height: 4,
+        width: double.infinity,
+        child: LinearProgressIndicator(
+          value: progress.clamp(0.0, 1.0),
+          backgroundColor: AppColors.surfaceMuted,
+          valueColor: AlwaysStoppedAnimation<Color>(color),
+        ),
+      ),
     );
   }
 }

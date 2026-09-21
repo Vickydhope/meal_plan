@@ -311,38 +311,41 @@ class MealLogNotifier extends Notifier<MealLogState> {
     return ref.read(getSignedImageUrlUseCaseProvider)(path);
   }
 
-  /// Removes [log] from [MealLogState.logs] immediately (e.g. swiped away
-  /// on the home screen), without yet touching the backend — pairs with
-  /// [commitDeleteMealLog] once an "Undo" snackbar's window has passed, or
-  /// [restoreMealLog] if the user taps Undo. Returns the index [log] was
-  /// removed from, or `null` if it wasn't found.
-  int? removeMealLogLocally(MealLog log) {
+  /// Removes [log] from [MealLogState.logs] and commits its (soft) deletion
+  /// to the backend immediately — no deferred commit, so nothing reading
+  /// fresh from the backend (e.g. Ask AI) can observe a "deleted" meal as
+  /// still-live. Returns the index [log] was removed from, or `null` if it
+  /// wasn't found or the backend call failed ([MealLogState.error] is set
+  /// in the latter case). Pairs with [restoreMealLog] if the user taps
+  /// Undo before the snackbar showing this closes.
+  Future<int?> deleteMealLog(MealLog log) async {
     final index = state.logs.indexWhere((l) => l.id == log.id);
     if (index == -1) return null;
     state = state.copyWith(logs: [...state.logs]..removeAt(index));
-    return index;
-  }
-
-  /// Undoes [removeMealLogLocally], putting [log] back at [index].
-  void restoreMealLog(int index, MealLog log) {
-    state = state.copyWith(logs: [...state.logs]..insert(index, log));
-  }
-
-  /// Actually deletes [log] from the backend once its "Undo" window has
-  /// passed — [log] must already be out of [MealLogState.logs] via
-  /// [removeMealLogLocally]. On failure, [log] is put back at [index] and
-  /// [MealLogState.error] is set; the image is only removed (best-effort)
-  /// once the row delete succeeds.
-  Future<void> commitDeleteMealLog(MealLog log, int index) async {
     try {
       await ref.read(deleteMealLogUseCaseProvider)(log.id);
-      final imageUrl = log.imageUrl;
-      if (imageUrl != null) {
-        unawaited(ref.read(imageRepositoryProvider).deleteImage(imageUrl));
-      }
     } catch (err) {
       state = state.copyWith(
         logs: [...state.logs]..insert(index, log),
+        error: '$err',
+      );
+      return null;
+    }
+    return index;
+  }
+
+  /// Reverses [deleteMealLog]: puts [log] back at [index] and clears its
+  /// backend soft-delete. On failure, [log] is removed from local state
+  /// again (rather than showing a meal the backend still considers
+  /// deleted) and [MealLogState.error] is set.
+  Future<void> restoreMealLog(int index, MealLog log) async {
+    state = state.copyWith(logs: [...state.logs]..insert(index, log));
+    try {
+      await ref.read(restoreMealLogUseCaseProvider)(log.id);
+    } catch (err) {
+      final idx = state.logs.indexWhere((l) => l.id == log.id);
+      state = state.copyWith(
+        logs: idx == -1 ? state.logs : ([...state.logs]..removeAt(idx)),
         error: '$err',
       );
     }

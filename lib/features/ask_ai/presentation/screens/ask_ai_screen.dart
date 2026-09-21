@@ -84,7 +84,7 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Ask AI', style: AppTypography.titleLarge),
+            Text('Cravia', style: AppTypography.titleLarge),
             Text('Your nutrition assistant', style: AppTypography.bodySmall),
           ],
         ),
@@ -154,7 +154,7 @@ class _WelcomeState extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            "Hi! I'm your nutrition assistant",
+            "Hi! I'm Cravia, your nutrition assistant",
             textAlign: TextAlign.center,
             style: AppTypography.headlineMedium,
           ),

@@ -71,6 +71,15 @@ class MealLogRepositoryImpl implements MealLogRepository {
   }
 
   @override
+  Future<void> restoreMealLog(String logId) async {
+    try {
+      await _dataSource.restoreMealLog(logId);
+    } catch (err) {
+      throw MealLogPersistenceException('Failed to restore meal log: $err');
+    }
+  }
+
+  @override
   Future<MealLog> updateMealLog(MealLog log) async {
     try {
       // Totals are always derived from `items` (portion-adjusted), never

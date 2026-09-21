@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A Flutter calorie-tracking app ("Calorie Tracker"). Users snap a photo of a meal, it's uploaded to Supabase Storage and sent to a Supabase Edge Function that calls Gemini for nutrition analysis, and the result is reviewed/edited before being saved as a meal log row.
+A Flutter calorie-tracking app ("Cravia"). Users snap a photo of a meal, it's uploaded to Supabase Storage and sent to a Supabase Edge Function that calls Gemini for nutrition analysis, and the result is reviewed/edited before being saved as a meal log row.
 
 ## Commands
 
@@ -17,7 +17,7 @@ scripts/run_dev.sh                  # run the dev flavor (local Supabase stack) 
 scripts/run_prod.sh                 # run the prod flavor (live Supabase project) on a connected device/simulator
 ```
 
-The app uses Android/iOS build flavors (`dev`/`prod`) — `--flavor` is required for `flutter run`/`flutter build` now that `productFlavors` exist. `dev` and `prod` install side-by-side (separate applicationId/bundle id, "Calorie Tracker (Dev)" vs "Calorie Tracker" display name). `scripts/run_dev.sh`/`run_prod.sh` wrap the full `--flavor` + `--dart-define-from-file` invocation; the equivalent explicit form is `flutter run --flavor dev --dart-define-from-file=dart_defines/dev.json` / `--flavor prod --dart-define-from-file=dart_defines/prod.json`.
+The app uses Android/iOS build flavors (`dev`/`prod`) — `--flavor` is required for `flutter run`/`flutter build` now that `productFlavors` exist. `dev` and `prod` install side-by-side (separate applicationId/bundle id, "[Dev]Cravia" vs "Cravia" display name). `scripts/run_dev.sh`/`run_prod.sh` wrap the full `--flavor` + `--dart-define-from-file` invocation; the equivalent explicit form is `flutter run --flavor dev --dart-define-from-file=dart_defines/dev.json` / `--flavor prod --dart-define-from-file=dart_defines/prod.json`.
 
 Tests live under `test/`, mirroring the `lib/` path of what they cover. Domain use cases and repositories are tested with `mocktail` mocks against the abstract repository interfaces — no real Supabase/network calls in unit tests.
 

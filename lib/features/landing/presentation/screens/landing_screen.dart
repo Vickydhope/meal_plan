@@ -87,7 +87,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'Calorie Tracker',
+                  'Cravia',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),

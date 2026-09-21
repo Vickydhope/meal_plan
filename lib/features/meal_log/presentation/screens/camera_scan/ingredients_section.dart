@@ -434,7 +434,7 @@ class AnalyzingNextCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Calmia is analyzing next ingredient...',
+                  'Cravia is analyzing next ingredient...',
                   style: TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,

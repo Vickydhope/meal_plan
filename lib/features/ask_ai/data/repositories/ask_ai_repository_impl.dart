@@ -25,9 +25,19 @@ class AskAiRepositoryImpl implements AskAiRepository {
           )
           .toList();
 
+      // "Today" must match the device's local calendar day, not the edge
+      // function's own (UTC) clock — otherwise its meal-totals context
+      // drifts from what the dashboard shows for users off UTC. Mirrors
+      // MealLogRepositoryImpl.fetchLogsForDate's local-midnight boundary.
+      final now = DateTime.now();
+      final dayStart = DateTime(now.year, now.month, now.day);
+      final dayEnd = dayStart.add(const Duration(days: 1));
+
       await for (final raw in _dataSource.streamAskAi(
         question: question,
         history: historyPayload,
+        dayStartUtc: dayStart.toUtc().toIso8601String(),
+        dayEndUtc: dayEnd.toUtc().toIso8601String(),
       )) {
         switch (raw['_event']) {
           case 'delta':
