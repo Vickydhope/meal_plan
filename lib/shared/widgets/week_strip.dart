@@ -23,8 +23,18 @@ class WeekStrip extends StatefulWidget {
 class _WeekStripState extends State<WeekStrip> {
   static const _dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   static const _monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
 
   // A fixed, far-past Sunday used purely as a stable zero point for page
@@ -102,74 +112,84 @@ class _WeekStripState extends State<WeekStrip> {
         ),
         SizedBox(
           height: 72,
-          child: PageView.builder(
-            controller: _controller,
-            onPageChanged: (page) => setState(() => _page = page),
-            // No page beyond the current week — the current week is the
-            // last one available to swipe to, so there's nowhere "next" to
-            // go past it.
-            itemCount: _weekPageFor(DateTime.now()) + 1,
-            itemBuilder: (context, page) {
-              final pageWeekStart = _epochWeekStart.add(Duration(days: page * 7));
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(7, (index) {
-                  final day = pageWeekStart.add(Duration(days: index));
-                  final now = DateTime.now();
-                  final today = DateTime(now.year, now.month, now.day);
-                  final isSelected = day.year == widget.selectedDate.year &&
-                      day.month == widget.selectedDate.month &&
-                      day.day == widget.selectedDate.day;
-                  final isToday = day.year == today.year &&
-                      day.month == today.month &&
-                      day.day == today.day;
-                  final isFuture = day.isAfter(today);
+          child: MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.noScaling),
+            child: PageView.builder(
+              controller: _controller,
+              onPageChanged: (page) => setState(() => _page = page),
+              // No page beyond the current week — the current week is the
+              // last one available to swipe to, so there's nowhere "next" to
+              // go past it.
+              itemCount: _weekPageFor(DateTime.now()) + 1,
+              itemBuilder: (context, page) {
+                final pageWeekStart = _epochWeekStart.add(
+                  Duration(days: page * 7),
+                );
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: List.generate(7, (index) {
+                    final day = pageWeekStart.add(Duration(days: index));
+                    final now = DateTime.now();
+                    final today = DateTime(now.year, now.month, now.day);
+                    final isSelected =
+                        day.year == widget.selectedDate.year &&
+                        day.month == widget.selectedDate.month &&
+                        day.day == widget.selectedDate.day;
+                    final isToday =
+                        day.year == today.year &&
+                        day.month == today.month &&
+                        day.day == today.day;
+                    final isFuture = day.isAfter(today);
 
-                  return GestureDetector(
-                    onTap: isFuture ? null : () => widget.onDateSelected(day),
-                    child: Container(
-                      width: 40,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: isSelected ? AppColors.surface : null,
+                    return GestureDetector(
+                      onTap: isFuture ? null : () => widget.onDateSelected(day),
+                      child: Container(
+                        width: 40,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: isSelected ? AppColors.surface : null,
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              _dayLabels[index],
+                              style: TextStyle(
+                                color: isFuture
+                                    ? AppColors.textDisabled
+                                    : AppColors.textTertiary,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${day.day}'.padLeft(2, '0'),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                                color: isFuture ? AppColors.textDisabled : null,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              width: 4,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isToday
+                                    ? AppColors.accent
+                                    : Colors.transparent,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Column(
-                        children: [
-                          Text(
-                            _dayLabels[index],
-                            style: TextStyle(
-                              color: isFuture
-                                  ? AppColors.textDisabled
-                                  : AppColors.textTertiary,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${day.day}'.padLeft(2, '0'),
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                              color: isFuture ? AppColors.textDisabled : null,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            width: 4,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isToday ? AppColors.accent : Colors.transparent,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-              );
-            },
+                    );
+                  }),
+                );
+              },
+            ),
           ),
         ),
       ],
