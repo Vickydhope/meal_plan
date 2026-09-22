@@ -41,35 +41,19 @@ class CalorieOverviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: 16,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Center(
-            child: SizedBox(
-              width: MediaQuery.of(context).size.shortestSide * .45,
-              child: _CalorieProgressRing(consumed: consumed, target: target),
-            ),
+          SizedBox(
+            width: MediaQuery.of(context).size.shortestSide * .36,
+            child: _CalorieProgressRing(consumed: consumed, target: target),
           ),
-
-          Row(
-            children: [
-              for (var i = 0; i < macros.length; i++) ...[
-                if (i > 0)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4),
-                    child: SizedBox(
-                      height: 56,
-                      child: VerticalDivider(
-                        width: 1,
-                        color: AppColors.divider,
-                      ),
-                    ),
-                  ),
-                Expanded(child: _MacroColumn(stat: macros[i])),
-              ],
-            ],
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              spacing: 14,
+              children: [for (final stat in macros) _MacroRow(stat: stat)],
+            ),
           ),
         ],
       ),
@@ -77,8 +61,8 @@ class CalorieOverviewCard extends StatelessWidget {
   }
 }
 
-class _MacroColumn extends StatelessWidget {
-  const _MacroColumn({required this.stat});
+class _MacroRow extends StatelessWidget {
+  const _MacroRow({required this.stat});
 
   final MacroStat stat;
 
@@ -87,7 +71,8 @@ class _MacroColumn extends StatelessWidget {
     final isOverTarget = stat.target > 0 && stat.value > stat.target;
     final barColor = isOverTarget ? AppColors.error : stat.color;
 
-    return Column(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
           height: 40,
@@ -99,35 +84,44 @@ class _MacroColumn extends StatelessWidget {
           ),
           child: Icon(stat.icon, size: 18, color: stat.color),
         ),
-        const SizedBox(height: 8),
-        Text(
-          stat.label,
-          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-        ),
-        Text.rich(
-          TextSpan(
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextSpan(
-                text: '${stat.value}',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: isOverTarget ? AppColors.error : null,
-                ),
+              Row(
+                children: [
+                  Text(
+                    stat.label,
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                  const Spacer(),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${stat.value}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: isOverTarget ? AppColors.error : null,
+                          ),
+                        ),
+                        TextSpan(
+                          text: '/${stat.target}g',
+                          style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              TextSpan(
-                text: '/${stat.target}g',
-                style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+              const SizedBox(height: 6),
+              _MacroProgressBar(
+                progress: stat.target <= 0 ? 0 : stat.value / stat.target,
+                color: barColor,
               ),
             ],
-          ),
-        ),
-        const SizedBox(height: 6),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: _MacroProgressBar(
-            progress: stat.target <= 0 ? 0 : stat.value / stat.target,
-            color: barColor,
           ),
         ),
       ],

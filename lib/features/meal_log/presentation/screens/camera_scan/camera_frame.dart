@@ -48,10 +48,10 @@ class ShutterButton extends StatelessWidget {
   }
 }
 
-/// The single persistent photo frame: a live camera preview while idle,
-/// the captured photo everywhere after — always the same square, rounded,
-/// corner-bracketed container, so capturing never feels like a screen
-/// change.
+/// The single persistent photo frame on [CameraScanScreen]: a live camera
+/// preview while idle, the just-captured photo once taken — always the
+/// same square, rounded, corner-bracketed container, so capturing never
+/// feels like a screen change.
 class PhotoFrame extends StatelessWidget {
   const PhotoFrame({
     super.key,
@@ -61,16 +61,14 @@ class PhotoFrame extends StatelessWidget {
     required this.initFuture,
     required this.cameraError,
     required this.capturing,
-    required this.showScanningRings,
   });
 
-  final Phase phase;
+  final CapturePhase phase;
   final String? capturedPath;
   final CameraController? controller;
   final Future<void>? initFuture;
   final String? cameraError;
   final bool capturing;
-  final bool showScanningRings;
 
   @override
   Widget build(BuildContext context) {
@@ -83,15 +81,15 @@ class PhotoFrame extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              if (phase == Phase.idle)
+              if (phase == CapturePhase.idle)
                 _buildCameraContent(context)
-              else if (kIsWeb)
-                Image.network(capturedPath!, fit: BoxFit.cover)
               else
-                Image.file(File(capturedPath!), fit: BoxFit.cover),
+                Hero(
+                  tag: capturedPhotoHeroTag,
+                  child: capturedImage(capturedPath!),
+                ),
               const ViewfinderCorners(),
-              if (showScanningRings) const ScanningRings(),
-              if (phase == Phase.idle && capturing)
+              if (phase == CapturePhase.idle && capturing)
                 const Center(
                   child: CircularProgressIndicator(color: Colors.white),
                 ),
@@ -127,6 +125,16 @@ class PhotoFrame extends StatelessWidget {
       },
     );
   }
+}
+
+/// Renders the still image at [path] — [Image.network] on web (where
+/// captured photos live as blob URLs), [Image.file] elsewhere. Also used
+/// directly by [ScanResultScreen] for its parallax header image (no
+/// corner-bracketed frame there — see [capturedPhotoHeroTag]).
+Widget capturedImage(String path) {
+  return kIsWeb
+      ? Image.network(path, fit: BoxFit.cover)
+      : Image.file(File(path), fit: BoxFit.cover);
 }
 
 /// Renders [CameraPreview] scaled to cover its square parent edge-to-edge
@@ -178,6 +186,11 @@ class CoverCameraPreview extends StatelessWidget {
 /// rounded corner actually is.
 const frameOuterRadius = 24.0;
 const _cornerInset = 12.0;
+
+/// Shared [Hero] tag for the captured photo's flight between
+/// [CameraScanScreen]'s [PhotoFrame] and [ScanResultScreen]'s parallax
+/// header image.
+const capturedPhotoHeroTag = 'captured-photo-hero';
 
 class ViewfinderCorners extends StatelessWidget {
   const ViewfinderCorners({super.key});

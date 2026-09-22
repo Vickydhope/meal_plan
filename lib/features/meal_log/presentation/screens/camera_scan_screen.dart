@@ -3,45 +3,42 @@ import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/app_route.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/meal_type.dart';
-import '../providers/meal_log_providers.dart';
 import 'camera_scan/camera_frame.dart';
 import 'camera_scan/empty_plate_message.dart';
-import 'camera_scan/fade_slide_in.dart';
-import 'camera_scan/ingredients_section.dart';
-import 'camera_scan/metrics_section.dart';
 import 'camera_scan/phase.dart';
+import 'scan_result_screen.dart';
 
 /// Shared [Hero] tag for the flight between the app shell's camera FAB and
 /// this screen's shutter button.
 const cameraFabHeroTag = 'camera-fab-hero';
 
-/// One continuous screen for the whole capture → confirm → analyze →
-/// review flow. There's a single [Scaffold]/[AppBar] for the screen's
-/// lifetime — only the photo frame's contents, the section below it, and
-/// the bottom action button change as [Phase] advances. Matches
+/// Captures a photo and lets the user confirm or retake it. Owns only the
+/// camera hardware lifecycle — once the user confirms a photo ("Use
+/// Photo"), it hands the path off to [ScanResultScreen], which owns
+/// analysis, review, and confirming the meal log. Matches
 /// `design_references/img.png`.
 ///
-/// The visual building blocks (photo frame/viewfinder, ingredient cards,
-/// nutrition metrics, entrance animation) live under `camera_scan/` — this
-/// file only holds the screen's camera lifecycle and phase-driven layout.
-class CameraScanScreen extends ConsumerStatefulWidget {
+/// The visual building blocks (photo frame/viewfinder, entrance animation)
+/// live under `camera_scan/` — this file only holds the camera lifecycle
+/// and the idle/captured layout.
+class CameraScanScreen extends StatefulWidget {
   const CameraScanScreen({super.key, this.initialMealType});
 
   /// Overrides the time-of-day default meal type — set when the capture was
   /// started from a specific section's "+ Log Food" button on the home
-  /// screen.
+  /// screen. Threaded through to [ScanResultScreen] on confirm.
   final MealType? initialMealType;
 
   @override
-  ConsumerState<CameraScanScreen> createState() => _CameraScanScreenState();
+  State<CameraScanScreen> createState() => _CameraScanScreenState();
 }
 
-class _CameraScanScreenState extends ConsumerState<CameraScanScreen> {
+class _CameraScanScreenState extends State<CameraScanScreen> {
   List<CameraDescription> _cameras = [];
   int _cameraIndex = 0;
   CameraController? _controller;
@@ -142,214 +139,128 @@ class _CameraScanScreenState extends ConsumerState<CameraScanScreen> {
     }
   }
 
-  void _analyze() {
+  void _retake() {
+    setState(() => _capturedPath = null);
+  }
+
+  Future<void> _usePhoto() async {
     final path = _capturedPath;
     if (path == null) return;
-    ref
-        .read(mealLogProvider.notifier)
-        .analyzeCapturedPhoto(path, mealType: widget.initialMealType);
-  }
-
-  /// Discards/cancels whatever the analysis pipeline has in flight, without
-  /// leaving the screen — used by both "retake" and the back action. Best
-  /// effort: this makes a real network call (deleting the orphaned upload),
-  /// and a failure there must never block the user from retaking/leaving.
-  Future<void> _cleanupInFlight() async {
-    final notifier = ref.read(mealLogProvider.notifier);
-    final current = ref.read(mealLogProvider);
-    try {
-      if (current.pendingAnalysis != null) {
-        await notifier.discardPendingMeal();
-      } else if (current.isStreaming) {
-        await notifier.cancelAnalysis();
-      }
-    } catch (_) {
-      // Swallow — the local reset below must still happen.
+    final confirmed = await context.pushNamed<bool>(
+      AppRoute.scanResult.name,
+      extra: ScanResultArgs(imagePath: path, mealType: widget.initialMealType),
+    );
+    if (!mounted) return;
+    if (confirmed == true) {
+      // Meal was saved on the scan-result screen — leave the camera too.
+      context.pop();
+    } else {
+      // User backed out (or the scan-result screen discarded the photo) —
+      // return to a live viewfinder.
+      setState(() => _capturedPath = null);
     }
-  }
-
-  Future<void> _retakeAll() async {
-    await _cleanupInFlight();
-    if (mounted) setState(() => _capturedPath = null);
-  }
-
-  Future<void> _leave() async {
-    await _cleanupInFlight();
-    if (mounted) context.pop();
-  }
-
-  Future<void> _confirm() async {
-    await ref.read(mealLogProvider.notifier).confirmMealLog();
-    if (mounted) context.pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(mealLogProvider);
-    final pending = state.pendingAnalysis;
     final capturedPath = _capturedPath;
+    final phase = capturedPath == null ? CapturePhase.idle : CapturePhase.captured;
 
-    final phase = capturedPath == null
-        ? Phase.idle
-        : pending != null
-        ? Phase.reviewing
-        : state.isStreaming
-        ? Phase.analyzing
-        : Phase.captured;
-
-    final items = phase == Phase.reviewing ? pending!.items : state.streamingItems;
-    final mealName = phase == Phase.reviewing
-        ? pending!.mealName
-        : state.streamingMealName;
-    final showIngredients = phase == Phase.analyzing || phase == Phase.reviewing;
-    final showScanningRings =
-        phase == Phase.analyzing && items.isEmpty && state.isStreaming;
-
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        await _leave();
-      },
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(
-              LucideIcons.arrow_left,
-              color: AppColors.textPrimary,
-              size: 18,
-            ),
-            onPressed: _leave,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            LucideIcons.arrow_left,
+            color: AppColors.textPrimary,
+            size: 18,
           ),
-          title: mealName == null
-              ? null
-              : Text(
-                  mealName,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-          actions: phase == Phase.idle
-              ? [
-                  IconButton(
-                    icon: Icon(
-                      _flashOn ? LucideIcons.zap : LucideIcons.zap_off,
-                      color: AppColors.textPrimary,
-                      size: 18,
-                    ),
-                    onPressed: _capturing ? null : _toggleFlash,
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      LucideIcons.switch_camera,
-                      color: AppColors.textPrimary,
-                      size: 18,
-                    ),
-                    onPressed: _capturing || _cameras.length < 2 ? null : _flipCamera,
-                  ),
-                ]
-              : [
-                  IconButton(
-                    icon: const Icon(
-                      LucideIcons.rotate_ccw,
-                      color: AppColors.textPrimary,
-                      size: 18,
-                    ),
-                    onPressed: _retakeAll,
-                  ),
-                ],
+          onPressed: () => context.pop(),
         ),
-        body: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-                child: PhotoFrame(
-                  phase: phase,
-                  capturedPath: capturedPath,
-                  controller: _controller,
-                  initFuture: _initFuture,
-                  cameraError: _cameraError,
-                  capturing: _capturing,
-                  showScanningRings: showScanningRings,
+        actions: phase == CapturePhase.idle
+            ? [
+                IconButton(
+                  icon: Icon(
+                    _flashOn ? LucideIcons.zap : LucideIcons.zap_off,
+                    color: AppColors.textPrimary,
+                    size: 18,
+                  ),
+                  onPressed: _capturing ? null : _toggleFlash,
                 ),
+                IconButton(
+                  icon: const Icon(
+                    LucideIcons.switch_camera,
+                    color: AppColors.textPrimary,
+                    size: 18,
+                  ),
+                  onPressed: _capturing || _cameras.length < 2 ? null : _flipCamera,
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(
+                    LucideIcons.rotate_ccw,
+                    color: AppColors.textPrimary,
+                    size: 18,
+                  ),
+                  onPressed: _retake,
+                ),
+              ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              child: PhotoFrame(
+                phase: phase,
+                capturedPath: capturedPath,
+                controller: _controller,
+                initFuture: _initFuture,
+                cameraError: _cameraError,
+                capturing: _capturing,
               ),
-              if (phase == Phase.captured && state.error != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: Text(
-                    state.error!,
-                    style: const TextStyle(
-                      color: AppColors.error,
-                      fontSize: 13,
-                    ),
+            ),
+            const Expanded(child: EmptyPlateMessage()),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(
+                    scale: Tween(begin: 0.96, end: 1.0).animate(animation),
+                    child: child,
                   ),
                 ),
-              Expanded(
-                child: showIngredients
-                    ? SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            FadeSlideIn(
-                              child: IngredientsSection(
-                                items: items,
-                                isStreaming: state.isStreaming,
-                                editable: phase == Phase.reviewing,
-                              ),
-                            ),
-                            if (phase == Phase.reviewing)
-                              FadeSlideIn(child: MetricsSection(pending: pending!)),
-                          ],
-                        ),
-                      )
-                    : const EmptyPlateMessage(),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: ScaleTransition(
-                      scale: Tween(begin: 0.96, end: 1.0).animate(animation),
-                      child: child,
-                    ),
-                  ),
-                  child: KeyedSubtree(
-                    key: ValueKey(phase),
-                    child: _bottomBar(phase, state.isProcessing),
-                  ),
+                child: KeyedSubtree(
+                  key: ValueKey(phase),
+                  child: _bottomBar(phase),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _bottomBar(Phase phase, bool isProcessing) {
+  Widget _bottomBar(CapturePhase phase) {
     switch (phase) {
-      case Phase.idle:
+      case CapturePhase.idle:
         return Center(
           child: Hero(
             tag: cameraFabHeroTag,
             child: ShutterButton(capturing: _capturing, onTap: _capture),
           ),
         );
-      case Phase.captured:
+      case CapturePhase.captured:
         return SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: _analyze,
+            onPressed: _usePhoto,
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primary,
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -357,46 +268,7 @@ class _CameraScanScreenState extends ConsumerState<CameraScanScreen> {
                 borderRadius: BorderRadius.circular(24),
               ),
             ),
-            child: const Text('Analyze'),
-          ),
-        );
-      case Phase.analyzing:
-        return SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: () => ref.read(mealLogProvider.notifier).stopAnalyzing(),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-            child: const Text('Stop Analyzing'),
-          ),
-        );
-      case Phase.reviewing:
-        return SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: isProcessing ? null : _confirm,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-            child: isProcessing
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('Confirm'),
+            child: const Text('Use Photo'),
           ),
         );
     }
