@@ -12,8 +12,8 @@ class AnalyzeMealPhotoUseCase {
   AnalyzeMealPhotoUseCase({
     required ImageRepository imageRepository,
     required FoodAnalysisRepository foodAnalysisRepository,
-  })  : _imageRepository = imageRepository,
-        _foodAnalysisRepository = foodAnalysisRepository;
+  }) : _imageRepository = imageRepository,
+       _foodAnalysisRepository = foodAnalysisRepository;
 
   final ImageRepository _imageRepository;
   final FoodAnalysisRepository _foodAnalysisRepository;
@@ -50,4 +50,8 @@ class AnalyzeMealPhotoUseCase {
       }
     }
   }
+
+  /// Aborts the in-flight [call] request, if any — see
+  /// [FoodAnalysisRepository.cancelInFlight].
+  void cancelInFlight() => _foodAnalysisRepository.cancelInFlight();
 }

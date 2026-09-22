@@ -65,7 +65,13 @@ class MealLogNotifier extends Notifier<MealLogState> {
         ? DateTime(today.year, today.month, today.day)
         : normalized;
 
-    state = state.copyWith(selectedDate: clamped);
+    // Clear the previous day's logs immediately so the screen doesn't show
+    // stale data while the new day's logs are in flight.
+    state = state.copyWith(
+      selectedDate: clamped,
+      logs: const [],
+      isLoadingLogs: true,
+    );
     await fetchLogsForSelectedDate();
   }
 
@@ -74,11 +80,12 @@ class MealLogNotifier extends Notifier<MealLogState> {
     final day = state.selectedDate ?? DateTime.now();
     if (userId == null) return;
 
+    state = state.copyWith(isLoadingLogs: true);
     final logs = await ref.read(fetchMealLogsUseCaseProvider)(
       userId: userId,
       date: day,
     );
-    state = state.copyWith(logs: logs);
+    state = state.copyWith(logs: logs, isLoadingLogs: false);
   }
 
   /// Captures a photo (already taken by the caller via the custom camera
@@ -170,14 +177,25 @@ class MealLogNotifier extends Notifier<MealLogState> {
   /// already detected as the pending analysis for review.
   Future<void> stopAnalyzing() async {
     if (!state.isStreaming) return;
+    // Aborts the in-flight HTTP call first — cancelling the subscription
+    // alone can't interrupt a single network request already in flight, so
+    // without this the cancel below just blocks until Gemini responds on
+    // its own (see AnalyzeMealPhotoUseCase.cancelInFlight).
+    ref.read(analyzeMealPhotoUseCaseProvider).cancelInFlight();
     await _analysisSub?.cancel();
     _analysisSub = null;
 
     final storagePath = _streamingStoragePath;
     if (storagePath == null) {
+      // Stopped before the upload even finished, so there's no image to
+      // build a PendingMealAnalysis from and nothing to review — surface
+      // as an error rather than silently sitting in the "analyzing" phase
+      // with a Stop button that can no longer do anything (isStreaming is
+      // now false, so a second tap would just no-op).
       state = state.copyWith(
         isProcessing: false,
         isStreaming: false,
+        error: 'Analysis stopped.',
         clearStreamingProgress: true,
       );
       return;
@@ -203,6 +221,7 @@ class MealLogNotifier extends Notifier<MealLogState> {
   /// whatever was detected so far instead of keeping it for review.
   Future<void> cancelAnalysis() async {
     if (!state.isStreaming) return;
+    ref.read(analyzeMealPhotoUseCaseProvider).cancelInFlight();
     await _analysisSub?.cancel();
     _analysisSub = null;
 

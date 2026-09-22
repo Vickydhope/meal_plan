@@ -40,4 +40,7 @@ class FoodAnalysisRepositoryImpl implements FoodAnalysisRepository {
       yield AnalysisFailed('Failed to analyze meal photo: $err');
     }
   }
+
+  @override
+  void cancelInFlight() => _dataSource.cancelInFlight();
 }

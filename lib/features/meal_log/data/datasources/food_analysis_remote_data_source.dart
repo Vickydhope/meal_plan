@@ -15,6 +15,19 @@ class FoodAnalysisRemoteDataSource {
 
   final SupabaseClient _client;
 
+  /// The `http.Client` backing the currently in-flight [streamAnalyzeFood]
+  /// call, if any — kept around solely so [cancelInFlight] can force-abort
+  /// it (closing a client mid-request throws in whatever `await`/stream
+  /// read is pending on it), since cancelling the returned `Stream`'s
+  /// subscription alone can't interrupt a single in-flight HTTP call.
+  http.Client? _httpClient;
+
+  /// Aborts the in-flight request started by [streamAnalyzeFood], if any.
+  void cancelInFlight() {
+    _httpClient?.close();
+    _httpClient = null;
+  }
+
   /// Streams decoded SSE payloads from the `analyze-food` function. Each
   /// yielded map is the event's JSON `data:` body, tagged with the SSE
   /// `event:` name under the `_event` key (`'meal_name' | 'item' | 'done' |
@@ -24,8 +37,8 @@ class FoodAnalysisRemoteDataSource {
     required String mimeType,
   }) async* {
     final uri = Uri.parse('${SupabaseConfig.url}/functions/v1/analyze-food');
-    final token = _client.auth.currentSession?.accessToken ??
-        SupabaseConfig.anonKey;
+    final token =
+        _client.auth.currentSession?.accessToken ?? SupabaseConfig.anonKey;
 
     final request = http.Request('POST', uri)
       ..headers.addAll({
@@ -39,29 +52,38 @@ class FoodAnalysisRemoteDataSource {
         'mimeType': mimeType,
       });
 
-    final response = await http.Client().send(request);
-    if (response.statusCode != 200) {
-      final body = await response.stream.bytesToString();
-      throw Exception('analyze-food returned ${response.statusCode}: $body');
-    }
-
-    String? currentEvent;
-    final lines = response.stream
-        .transform(utf8.decoder)
-        .transform(const LineSplitter());
-
-    await for (final line in lines) {
-      if (line.isEmpty) {
-        currentEvent = null;
-        continue;
+    final httpClient = http.Client();
+    _httpClient = httpClient;
+    try {
+      final response = await httpClient.send(request);
+      if (response.statusCode != 200) {
+        final body = await response.stream.bytesToString();
+        throw Exception('analyze-food returned ${response.statusCode}: $body');
       }
-      if (line.startsWith('event:')) {
-        currentEvent = line.substring(6).trim();
-      } else if (line.startsWith('data:')) {
-        final payload = line.substring(5).trim();
-        if (payload.isEmpty) continue;
-        final decoded = jsonDecode(payload) as Map<String, dynamic>;
-        yield {'_event': currentEvent ?? 'message', ...decoded};
+
+      String? currentEvent;
+      final lines = response.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter());
+
+      await for (final line in lines) {
+        if (line.isEmpty) {
+          currentEvent = null;
+          continue;
+        }
+        if (line.startsWith('event:')) {
+          currentEvent = line.substring(6).trim();
+        } else if (line.startsWith('data:')) {
+          final payload = line.substring(5).trim();
+          if (payload.isEmpty) continue;
+          final decoded = jsonDecode(payload) as Map<String, dynamic>;
+          yield {'_event': currentEvent ?? 'message', ...decoded};
+        }
+      }
+    } finally {
+      httpClient.close();
+      if (identical(_httpClient, httpClient)) {
+        _httpClient = null;
       }
     }
   }
