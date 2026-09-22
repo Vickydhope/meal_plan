@@ -59,7 +59,10 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
       _started = true;
       ref
           .read(mealLogProvider.notifier)
-          .analyzeCapturedPhoto(widget.args.imagePath, mealType: widget.args.mealType);
+          .analyzeCapturedPhoto(
+            widget.args.imagePath,
+            mealType: widget.args.mealType,
+          );
     });
   }
 
@@ -94,13 +97,28 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
     if (mounted) context.pop(true);
   }
 
+  void _retry() {
+    ref
+        .read(mealLogProvider.notifier)
+        .analyzeCapturedPhoto(
+          widget.args.imagePath,
+          mealType: widget.args.mealType,
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(mealLogProvider);
     final pending = state.pendingAnalysis;
 
-    final phase = pending != null ? ScanPhase.reviewing : ScanPhase.analyzing;
-    final items = phase == ScanPhase.reviewing ? pending!.items : state.streamingItems;
+    final phase = pending != null
+        ? ScanPhase.reviewing
+        : state.error != null
+        ? ScanPhase.error
+        : ScanPhase.analyzing;
+    final items = phase == ScanPhase.reviewing
+        ? pending!.items
+        : state.streamingItems;
     final mealName = phase == ScanPhase.reviewing
         ? pending!.mealName
         : state.streamingMealName;
@@ -186,28 +204,29 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
                         ),
                       ),
                     ),
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                    sliver: SliverToBoxAdapter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          NutritionOverviewCard(
-                            items: items,
-                            healthScore: pending?.healthScore,
-                          ),
-                          const SizedBox(height: 20),
-                          FadeSlideIn(
-                            child: IngredientsSection(
+                  if (state.error == null)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                      sliver: SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            NutritionOverviewCard(
                               items: items,
-                              isStreaming: state.isStreaming,
-                              editable: phase == ScanPhase.reviewing,
+                              healthScore: pending?.healthScore,
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 20),
+                            FadeSlideIn(
+                              child: IngredientsSection(
+                                items: items,
+                                isStreaming: state.isStreaming,
+                                editable: phase == ScanPhase.reviewing,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -273,6 +292,21 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
                     ),
                   )
                 : const Text('Confirm'),
+          ),
+        );
+      case ScanPhase.error:
+        return SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: _retry,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+            child: const Text('Retry'),
           ),
         );
     }

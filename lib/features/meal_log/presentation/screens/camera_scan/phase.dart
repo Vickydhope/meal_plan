@@ -2,6 +2,7 @@
 /// awaiting confirmation ("Use Photo").
 enum CapturePhase { idle, captured }
 
-/// [ScanResultScreen]'s two states: ingredients streaming in, and the
-/// settled result ready for review/confirm.
-enum ScanPhase { analyzing, reviewing }
+/// [ScanResultScreen]'s states: ingredients streaming in, the settled
+/// result ready for review/confirm, and analysis having stopped early or
+/// failed outright (offers Retry instead of a dead "Stop Analyzing").
+enum ScanPhase { analyzing, reviewing, error }
