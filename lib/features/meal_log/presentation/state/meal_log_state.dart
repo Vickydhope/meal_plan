@@ -9,6 +9,7 @@ class MealLogState {
     this.username,
     this.avatarPath,
     this.selectedDate,
+    this.isLoadingLogs = false,
     this.isProcessing = false,
     this.pendingAnalysis,
     this.error,
@@ -25,6 +26,11 @@ class MealLogState {
   /// displayable URL via `AvatarRepository.publicUrlFor`.
   final String? avatarPath;
   final DateTime? selectedDate;
+
+  /// True while [logs] is being (re)fetched for [selectedDate] — the home
+  /// screen shows a shimmer skeleton instead of stale/empty content while
+  /// this is true.
+  final bool isLoadingLogs;
   final bool isProcessing;
   final PendingMealAnalysis? pendingAnalysis;
   final String? error;
@@ -48,6 +54,7 @@ class MealLogState {
     String? username,
     String? avatarPath,
     DateTime? selectedDate,
+    bool? isLoadingLogs,
     bool? isProcessing,
     PendingMealAnalysis? pendingAnalysis,
     bool clearPendingAnalysis = false,
@@ -64,6 +71,7 @@ class MealLogState {
       username: username ?? this.username,
       avatarPath: avatarPath ?? this.avatarPath,
       selectedDate: selectedDate ?? this.selectedDate,
+      isLoadingLogs: isLoadingLogs ?? this.isLoadingLogs,
       isProcessing: isProcessing ?? this.isProcessing,
       pendingAnalysis: clearPendingAnalysis
           ? null

@@ -7,6 +7,7 @@ import '../../../../core/router/app_route.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../../shared/widgets/calorie_overview_card.dart';
+import '../../../../shared/widgets/shimmer_box.dart';
 import '../../../../shared/widgets/week_strip.dart';
 import '../../../profile/domain/utils/macro_split.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
@@ -151,7 +152,12 @@ class HomeScreen extends ConsumerWidget {
               ),
 
               SliverToBoxAdapter(child: SizedBox(height: 8)),
-              if (!isToday && state.logs.isEmpty)
+              if (state.isLoadingLogs)
+                const SliverPadding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  sliver: SliverToBoxAdapter(child: _MealSectionsShimmer()),
+                )
+              else if (!isToday && state.logs.isEmpty)
                 const SliverPadding(
                   padding: EdgeInsets.fromLTRB(16, 24, 16, 0),
                   sliver: SliverToBoxAdapter(child: _NoMealsForDay()),
@@ -237,6 +243,51 @@ class _NoMealsForDay extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
         ),
+      ],
+    );
+  }
+}
+
+/// Placeholder shown in place of the meal sections while
+/// [MealLogState.isLoadingLogs] is true — one shimmer card per meal type,
+/// mirroring [_MealSectionCard]'s shape so the layout doesn't jump once
+/// real data lands.
+class _MealSectionsShimmer extends StatelessWidget {
+  const _MealSectionsShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (var i = 0; i < 3; i++) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                const ShimmerBox(width: 72, height: 72, borderRadius: 16),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      ShimmerBox(width: 100, height: 13),
+                      SizedBox(height: 8),
+                      ShimmerBox(width: 70, height: 12),
+                      SizedBox(height: 8),
+                      ShimmerBox(width: 140, height: 20, borderRadius: 20),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (i < 2) const SizedBox(height: 8),
+        ],
       ],
     );
   }
