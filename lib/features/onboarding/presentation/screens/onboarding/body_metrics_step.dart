@@ -12,6 +12,15 @@ class BodyMetrics {
 
   final double heightCm;
   final double weightKg;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BodyMetrics &&
+      other.heightCm == heightCm &&
+      other.weightKg == weightKg;
+
+  @override
+  int get hashCode => Object.hash(heightCm, weightKg);
 }
 
 class BodyMetricsStep extends StatefulWidget {

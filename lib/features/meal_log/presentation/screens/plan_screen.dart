@@ -5,8 +5,6 @@ import '../../../../core/providers/core_providers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../app_shell/presentation/screens/app_shell.dart'
-    show kAppBottomBarHeight;
 import '../../../onboarding/presentation/screens/onboarding/activity_level_step.dart';
 import '../../../onboarding/presentation/screens/onboarding/body_metrics_step.dart';
 import '../../../onboarding/presentation/screens/onboarding/dob_step.dart';
@@ -57,6 +55,14 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
   ActivityLevel? _activityLevel;
   Goal? _goal;
 
+  // Snapshot of the last-saved (or just-loaded) values, used to detect
+  // unsaved edits so the save button can hide when there's nothing to save.
+  Sex? _savedSex;
+  DateTime? _savedDob;
+  BodyMetrics? _savedBodyMetrics;
+  ActivityLevel? _savedActivityLevel;
+  Goal? _savedGoal;
+
   bool _saving = false;
   String? _error;
 
@@ -70,6 +76,15 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
         : null;
     _activityLevel = profile.activityLevel;
     _goal = profile.goal;
+    _syncSavedSnapshot();
+  }
+
+  void _syncSavedSnapshot() {
+    _savedSex = _sex;
+    _savedDob = _dob;
+    _savedBodyMetrics = _bodyMetrics;
+    _savedActivityLevel = _activityLevel;
+    _savedGoal = _goal;
   }
 
   bool get _isComplete =>
@@ -78,6 +93,13 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       _bodyMetrics != null &&
       _activityLevel != null &&
       _goal != null;
+
+  bool get _isDirty =>
+      _sex != _savedSex ||
+      _dob != _savedDob ||
+      _bodyMetrics != _savedBodyMetrics ||
+      _activityLevel != _savedActivityLevel ||
+      _goal != _savedGoal;
 
   CalorieTargetResult? get _preview {
     if (!_isComplete) return null;
@@ -230,6 +252,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       );
       ref.invalidate(currentUserProfileProvider);
       await ref.read(mealLogProvider.notifier).refreshProfile();
+      _syncSavedSnapshot();
       if (mounted) showAppSnackBar(context, 'Plan updated');
     } catch (err) {
       setState(() => _error = '$err');
@@ -259,6 +282,31 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text('My Plan'),
+        actions: [
+          if (_saving || _isDirty)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _saving
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    )
+                  : IconButton(
+                      onPressed: _isComplete ? _save : null,
+                      icon: const Icon(Icons.check),
+                      color: AppColors.primary,
+                      disabledColor: AppColors.textDisabled,
+                      tooltip: 'Save Changes',
+                    ),
+            ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -268,7 +316,28 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                 children: [
                   _PlanSummaryCard(preview: _preview),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: AppColors.textTertiary,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Tap any field below to update your goal — your '
+                          'plan recalculates automatically.',
+                          style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   Container(
                     decoration: BoxDecoration(
                       color: AppColors.surface,
@@ -320,45 +389,6 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
                     ),
                   ],
                 ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                16,
-                8,
-                16,
-                16 + kAppBottomBarHeight,
-              ),
-              child: SizedBox(
-                height: 52,
-                child: FilledButton(
-                  onPressed: (_isComplete && !_saving) ? _save : null,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.onScrim,
-                    disabledBackgroundColor: AppColors.textDisabled,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppSpacing.radiusFull,
-                      ),
-                    ),
-                  ),
-                  child: _saving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.onScrim,
-                          ),
-                        )
-                      : Text(
-                          'Save Changes',
-                          style: AppTypography.titleMedium.copyWith(
-                            color: AppColors.onScrim,
-                          ),
-                        ),
-                ),
               ),
             ),
           ],
