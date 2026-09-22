@@ -27,8 +27,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoute.landing.path,
     refreshListenable: ref.watch(routerRefreshNotifierProvider),
     redirect: (context, state) {
-      final userId = ref.read(authRepositoryProvider).currentUserId;
-      if (userId == null) {
+      final userIdAsync = ref.read(authUserIdProvider);
+      final userId = userIdAsync.valueOrNull;
+      if (userIdAsync.isLoading || userId == null) {
         return state.matchedLocation == AppRoute.landing.path
             ? null
             : AppRoute.landing.path;

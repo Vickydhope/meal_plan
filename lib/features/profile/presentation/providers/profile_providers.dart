@@ -60,7 +60,7 @@ final uploadAvatarUseCaseProvider = Provider(
 /// `OnboardingScreen` or `AppShell` — invalidated by `OnboardingScreen`
 /// once it finishes, so the app reactively swaps over.
 final currentUserProfileProvider = FutureProvider<UserProfile?>((ref) async {
-  final userId = ref.watch(authRepositoryProvider).currentUserId;
+  final userId = await ref.watch(authUserIdProvider.future);
   if (userId == null) return null;
   return ref.watch(fetchUserProfileUseCaseProvider)(userId);
 });

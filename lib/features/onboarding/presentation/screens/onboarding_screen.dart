@@ -123,8 +123,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         goal: _goal!,
         dailyCalorieTarget: _summary!.dailyCalorieTarget,
       );
-      // No Navigator call: invalidating this provider makes `_AuthGate`
-      // (which watches it) reactively swap this screen for `AppShell`.
+      // No Navigator call: invalidating this provider notifies
+      // `RouterRefreshNotifier`, which makes the router's redirect
+      // reactively swap this screen for `AppShell`.
       ref.invalidate(currentUserProfileProvider);
     } catch (err) {
       setState(() => _error = '$err');
