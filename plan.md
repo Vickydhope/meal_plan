@@ -100,9 +100,10 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - **Expected result:** All repository/data-source failures surface as `AppException` subtypes, consistent with the rest of the codebase.
 
 ### 3.3 Add crash reporting / observability
-- **Status:** [ ]
+- **Status:** [x] (2026-09-24)
 - **Problem:** No Sentry/Crashlytics/analytics anywhere in the app — production issues are invisible beyond user reports.
-- **Work:** Integrate Sentry (or Crashlytics) for Flutter, wired to catch uncaught errors and Riverpod notifier failures.
+- **Work:** Integrated `sentry_flutter`. `SentryFlutter.init` wraps `main()`'s `appRunner`, installing `FlutterError.onError`/`PlatformDispatcher.onError` for uncaught errors. `SentryProviderObserver` (`core/error/`) hooks Riverpod's `ProviderObserver.providerDidFail`, so any provider/notifier that throws during build (as opposed to an error a notifier already catches and surfaces via `state.error`) is reported too. DSN lives in `core/config/sentry_config.dart`, hardcoded like `SupabaseConfig`'s anon key — a DSN can only *send* events, not read data, so it's not a secret. Events are tagged with the existing `SUPABASE_ENV` define as the Sentry `environment`, so local dev runs stay filterable from prod.
+- **Verified:** a standalone smoke test against the real DSN confirmed end-to-end delivery (`Sentry.captureMessage` awaits `HttpTransport.send`, which returned a real, non-empty event id).
 - **Expected result:** Crashes and unhandled errors in production are visible and traceable without relying on user reports.
 
 ### 3.4 Add CI pipeline

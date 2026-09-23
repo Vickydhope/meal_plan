@@ -2,9 +2,6 @@
 
 ## Active
 
-- [ ] **Add crash reporting / observability** - no Sentry/Crashlytics/analytics anywhere; production issues are invisible beyond user reports
-  - Integrate Sentry (or Crashlytics) for Flutter, wired to catch uncaught errors and Riverpod notifier failures
-  - plan.md §3.3
 - [ ] **(Stretch) Write confirmed meal logs back into HealthKit/Health Connect** - read-only activity sync ships first (§4.1-4.2); this is the write-back follow-up
   - plan.md §4.3
 
@@ -25,3 +22,7 @@
 - [x] ~~Server-side cleanup of orphaned Storage objects~~ (2026-09-23) - live on the `MealPlan` project: `pg_cron` job (daily 3am) + `cleanup-orphaned-food-images` edge function, deployed via Supabase MCP; Vault secrets and the function's `CRON_SECRET` set (you ran the CLI step)
   - Verified end-to-end against real data: 0 false positives on the project's 16 current `food-images` objects, and a harmless dummy-path test call confirmed the cron secret auth path works (200, correctly reported 0 deleted)
   - plan.md §2.1
+- [x] ~~Add crash reporting / observability~~ (2026-09-24) - integrated `sentry_flutter`: `SentryFlutter.init` wraps `main()`, catching uncaught errors, plus a `SentryProviderObserver` reporting any Riverpod provider/notifier that fails to build
+  - DSN hardcoded in `core/config/sentry_config.dart` (like `SupabaseConfig`'s anon key — a DSN can only send events, not read data, so it's not a secret), tagged with the existing `SUPABASE_ENV` define so dev/prod events are filterable
+  - Verified end-to-end with a standalone smoke test against the real DSN — `Sentry.captureMessage` returned a real (non-empty) event id, confirming the HTTP delivery to Sentry's ingest API actually succeeded
+  - plan.md §3.3
