@@ -65,9 +65,10 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done
 ## 2. Scalability
 
 ### 2.1 Server-side cleanup of orphaned Storage objects
-- **Status:** [ ]
+- **Status:** [x] (2026-09-23, live on production)
 - **Problem:** `DiscardPendingMealUseCase` only cleans up uploaded images on the happy path. Crashes/kills/lost network mid-flow leave orphaned files in `food-images` indefinitely — unbounded storage cost growth.
-- **Work:** Add a `pg_cron` job or Storage lifecycle rule that removes objects under a user's prefix with no matching `meal_logs.image_url`, on a periodic schedule (e.g. daily, older than N hours).
+- **Work:** Added a `pg_cron` job (`supabase/migrations/20260923000000_cleanup_orphaned_food_images.sql`) that runs daily at 3am, finds `food-images` objects older than 24h with no matching `meal_logs.image_url`, and posts the orphaned paths to a new `cleanup-orphaned-food-images` edge function (via `pg_net`), which calls the real Storage API to delete them — a raw SQL `delete from storage.objects` only removes metadata, not the underlying bytes, so the edge function is required for an actual fix, not just the migration.
+- **Deployed and verified end-to-end** on the live `MealPlan` project: migration applied, Vault secrets (`project_url`, `cron_secret`) set, edge function deployed with its `CRON_SECRET` matching. Confirmed the detection query has 0 false positives against real data (all 16 current `food-images` objects older than 24h have matching `meal_logs` rows), and confirmed the cron-secret auth path works via a harmless dummy-path invocation (200, correctly reported 0 deleted).
 - **Expected result:** Orphaned images are automatically reclaimed; storage cost tracks actual logged meals, not upload attempts.
 
 ### 2.2 Cache signed image URLs client-side

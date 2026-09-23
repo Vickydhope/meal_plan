@@ -55,3 +55,6 @@ supabase/functions/.env
 supabase/functions/**/.env
 .env
 .env.local
+
+# graphify (/graphify skill) generated knowledge-graph output
+graphify-out/
