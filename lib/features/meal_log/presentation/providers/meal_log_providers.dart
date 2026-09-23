@@ -14,6 +14,7 @@ import '../../domain/usecases/analyze_meal_photo_usecase.dart';
 import '../../domain/usecases/confirm_meal_log_usecase.dart';
 import '../../domain/usecases/delete_meal_log_usecase.dart';
 import '../../domain/usecases/discard_pending_meal_usecase.dart';
+import '../../domain/usecases/fetch_meal_logs_page_usecase.dart';
 import '../../domain/usecases/fetch_meal_logs_usecase.dart';
 import '../../domain/usecases/get_signed_image_url_usecase.dart';
 import '../../domain/usecases/restore_meal_log_usecase.dart';
@@ -62,6 +63,10 @@ final analyzeMealPhotoUseCaseProvider = Provider(
 
 final fetchMealLogsUseCaseProvider = Provider(
   (ref) => FetchMealLogsUseCase(ref.watch(mealLogRepositoryProvider)),
+);
+
+final fetchMealLogsPageUseCaseProvider = Provider(
+  (ref) => FetchMealLogsPageUseCase(ref.watch(mealLogRepositoryProvider)),
 );
 
 final confirmMealLogUseCaseProvider = Provider(

@@ -32,6 +32,24 @@ class MealLogRepositoryImpl implements MealLogRepository {
   }
 
   @override
+  Future<List<MealLog>> fetchLogsPage({
+    required String userId,
+    DateTime? before,
+    int limit = 20,
+  }) async {
+    try {
+      final rows = await _dataSource.fetchLogsPage(
+        userId: userId,
+        before: before,
+        limit: limit,
+      );
+      return rows.map((row) => MealLogDto.fromMap(row).toEntity()).toList();
+    } catch (err) {
+      throw MealLogPersistenceException('Failed to load meal logs: $err');
+    }
+  }
+
+  @override
   Future<MealLog> saveMealLog({
     required String userId,
     required PendingMealAnalysis analysis,
