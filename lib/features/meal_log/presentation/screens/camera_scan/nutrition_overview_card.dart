@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_typography.dart';
 import '../../../../../shared/widgets/shimmer_box.dart';
 import '../../../domain/entities/meal_analysis_item.dart';
 
@@ -50,18 +51,18 @@ class NutritionOverviewCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Nutrition',
-                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                      style: AppTypography.titleLarge,
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       'Detected from your photo',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      style: AppTypography.caption12,
                     ),
                   ],
                 ),
@@ -154,7 +155,7 @@ class _HealthBadge extends StatelessWidget {
             Icon(LucideIcons.wand_sparkles, size: 12, color: color),
             Text(
               '$score/10',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
+              style: AppTypography.caption12Bold.copyWith(color: color),
             ),
           ],
         ),
@@ -193,7 +194,7 @@ class _MacroRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
           ),
         ),
         if (!hasData)
@@ -204,7 +205,7 @@ class _MacroRow extends StatelessWidget {
             child: Text(
               '${value}g',
               key: ValueKey(value),
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              style: AppTypography.valueMedium,
             ),
           ),
       ],
@@ -278,11 +279,11 @@ class _MacroRing extends StatelessWidget {
               children: [
                 Text(
                   '$calories',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: AppTypography.statValue,
                 ),
-                const Text(
+                Text(
                   'Calories',
-                  style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
+                  style: AppTypography.caption10,
                 ),
               ],
             ),

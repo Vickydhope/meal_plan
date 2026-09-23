@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import 'ring_painter.dart';
 
 /// A single macro's stat: current total, its share of [dailyTarget], an
@@ -93,7 +94,7 @@ class _MacroRow extends StatelessWidget {
                 children: [
                   Text(
                     stat.label,
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    style: AppTypography.caption12,
                   ),
                   const Spacer(),
                   Text.rich(
@@ -101,15 +102,15 @@ class _MacroRow extends StatelessWidget {
                       children: [
                         TextSpan(
                           text: '${stat.value}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
+                          style: AppTypography.valueMedium.copyWith(
                             color: isOverTarget ? AppColors.error : null,
                           ),
                         ),
                         TextSpan(
                           text: '/${stat.target}g',
-                          style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                          style: AppTypography.caption11.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
                         ),
                       ],
                     ),
@@ -193,31 +194,22 @@ class _CalorieProgressRing extends StatelessWidget {
                 children: [
                   Text(
                     '$consumed',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: AppTypography.statValue,
                   ),
-                  const Text(
+                  Text(
                     'kcal',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: AppColors.textTertiary,
-                    ),
+                    style: AppTypography.caption10,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'of $target kcal',
-                    style: const TextStyle(
-                      fontSize: 10,
+                    style: AppTypography.caption10.copyWith(
                       color: AppColors.textSecondary,
                     ),
                   ),
                   Text(
                     '$percent%',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                    style: AppTypography.caption12Bold.copyWith(
                       color: AppColors.primary,
                     ),
                   ),

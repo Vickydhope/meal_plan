@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_typography.dart';
 
 /// Fills the space below the photo frame before analysis has started
 /// ([Phase.idle]/[Phase.captured]), so the screen doesn't read as
@@ -27,20 +28,13 @@ class EmptyPlateMessage extends StatelessWidget {
             Text(
               'Your plate is empty for now',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: AppColors.textTertiary,
-                fontWeight: .w500
-              ),
+              style: AppTypography.calloutMedium,
             ),
             const SizedBox(height: 4),
             Text(
               'Scan any meal to instantly track calories',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.textTertiary,
-              ),
+              style: AppTypography.bodySmall,
             ),
             const SizedBox(height: 24),
             const Wrap(
@@ -92,11 +86,7 @@ class _FeatureChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-            ),
+            style: AppTypography.caption11Medium,
           ),
         ],
       ),

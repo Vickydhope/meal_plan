@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_typography.dart';
 import '../../../../profile/domain/usecases/calculate_calorie_target_usecase.dart';
 import 'onboarding_header.dart';
 
@@ -24,16 +25,14 @@ class SummaryStep extends StatelessWidget {
             children: [
               Text(
                 '${result.dailyCalorieTarget}',
-                style: const TextStyle(
-                  fontSize: 56,
-                  fontWeight: FontWeight.bold,
+                style: AppTypography.displayXLarge.copyWith(
                   color: AppColors.accent,
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Your Daily calories',
-                style: TextStyle(color: AppColors.textSecondary),
+                style: AppTypography.bodyMedium,
               ),
             ],
           ),
@@ -67,11 +66,11 @@ class SummaryStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 32),
-        const Text(
+        Text(
           "You're all set! Start scanning your meals and we'll help you "
           'stay on track.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textSecondary),
+          style: AppTypography.bodyMedium,
         ),
       ],
     );
@@ -95,16 +94,12 @@ class _MacroStat extends StatelessWidget {
       children: [
         Text(
           '${value}g',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+          style: AppTypography.statValueLarge.copyWith(color: color),
         ),
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
         ),
       ],
     );

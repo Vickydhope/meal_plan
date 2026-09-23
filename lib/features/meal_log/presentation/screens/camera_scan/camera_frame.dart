@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_typography.dart';
 import 'phase.dart';
 
 /// A classic circular camera shutter button — a white ring with a solid
@@ -107,7 +108,7 @@ class PhotoFrame extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Text(
             cameraError!,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
         ),
@@ -325,9 +326,8 @@ class ScanningRingsState extends State<ScanningRings> {
             child: Text(
               _messages[_messageIndex],
               key: ValueKey(_messageIndex),
-              style: const TextStyle(
+              style: AppTypography.bodySmall.copyWith(
                 color: Colors.white,
-                fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
             ),

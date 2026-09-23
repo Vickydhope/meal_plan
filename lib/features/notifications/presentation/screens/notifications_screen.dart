@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 
 enum _NotificationType { meal, streak, reminder, tip }
 
@@ -164,14 +165,14 @@ class _NotificationCard extends StatelessWidget {
                     ),
                     Text(
                       notification.timeAgo,
-                      style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                      style: AppTypography.caption11.copyWith(color: AppColors.textTertiary),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
                   notification.body,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
                 ),
               ],
             ),

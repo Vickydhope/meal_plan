@@ -13,6 +13,7 @@ flutter pub get                     # install dependencies
 flutter analyze                     # static analysis (flutter_lints)
 flutter test                        # run all tests
 flutter test test/path/to/file.dart # run a single test file
+scripts/check_architecture.sh       # grep-based guard: domain purity, no hardcoded fontSize/Color(0x...) outside core/theme, no data-layer construction outside providers
 scripts/run_dev.sh                  # run the dev flavor (local Supabase stack) on a connected device/simulator
 scripts/run_prod.sh                 # run the prod flavor (live Supabase project) on a connected device/simulator
 ```
@@ -92,7 +93,7 @@ lib/
 
 **Backend**: Supabase Postgres with `meal_logs` and `profiles` tables (see `MealLogDto`/`UserProfileDto` in `data/models/` for the expected schema, and `supabase/migrations/` for the versioned schema — a `supabase db reset` against the local stack replays these from scratch). Auth is email/password (`AuthRepository.signUpWithEmail`/`signInWithEmail`/`signOut`, `lib/core/auth/`), reactively gated via `AuthRepository.userIdChanges` in the router. `main.dart` is the only place allowed to touch `Supabase.initialize`/`Supabase.instance` directly — everywhere else goes through `core/providers/core_providers.dart`.
 
-**Navigation**: No router package is wired up despite `go_router` being a dependency — navigation is plain `Navigator.push`/`pushReplacement` between `AppShell` (bottom-nav shell with tabs `HomeScreen`/`PlanScreen` and a center camera FAB), `CameraScanScreen`, and `ScanResultScreen`.
+**Navigation**: `go_router` (`lib/core/router/app_router.dart`), gated by a `redirect` callback that branches on auth state (`authUserIdProvider`) and onboarding completion (`currentUserProfileProvider`), refreshed via `router_refresh_notifier.dart`. Every destination is a case of the `AppRoute` enum (`lib/core/router/app_route.dart`) pairing a name with its path — call sites navigate via `AppRoute.x.name`/`.path`, never a raw string literal. `AppShell` (bottom-nav tabs `HomeScreen`/`AskAiScreen`/`PlanScreen` plus a center camera FAB) is a `StatefulShellRoute.indexedStack` branch; `CameraScanScreen`, `ScanResultScreen`, `SettingsScreen`, `NotificationsScreen`, and `ProfileScreen` are top-level routes pushed above the shell. Raw `Navigator.of(context)` is only used for local dialog/sheet dismissal (`.pop()`), never for route navigation.
 
 **Adding a new feature**: mirror the `meal_log` structure — domain entities/repositories/usecases first (pure Dart), then data DTOs/datasources/repository impls, then presentation state/notifier/providers/screens. Keep `domain` free of Flutter and Supabase imports so use cases stay unit-testable without mocks for infra.
 

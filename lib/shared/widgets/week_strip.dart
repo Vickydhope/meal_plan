@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 
 /// A swipeable, paged 7-day-per-week strip (Sun-Sat) letting the user pick
 /// which day's log to view, and page back/forward between weeks by swiping.
@@ -103,11 +104,7 @@ class _WeekStripState extends State<WeekStrip> {
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
             _labelFor(weekStart),
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
+            style: AppTypography.bodySmallMedium,
           ),
         ),
         SizedBox(
@@ -155,19 +152,16 @@ class _WeekStripState extends State<WeekStrip> {
                           children: [
                             Text(
                               _dayLabels[index],
-                              style: TextStyle(
+                              style: AppTypography.bodySmall.copyWith(
                                 color: isFuture
                                     ? AppColors.textDisabled
                                     : AppColors.textTertiary,
-                                fontSize: 13,
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               '${day.day}'.padLeft(2, '0'),
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 15,
+                              style: AppTypography.titleMedium.copyWith(
                                 color: isFuture ? AppColors.textDisabled : null,
                               ),
                             ),

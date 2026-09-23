@@ -25,6 +25,10 @@ abstract final class AppColors {
   static const surface = Colors.white;
   static const surfaceMuted = Color(0xFFEDEDED);
 
+  /// Highlight band swept across [ShimmerBox] placeholders — near-white so
+  /// it reads as a sheen against [surfaceMuted] rather than a new surface.
+  static const shimmerHighlight = Color(0xFFF7F7F7);
+
   /// Near-opaque cream surface used over photos/camera previews (e.g. the
   /// detected-ingredients card), so underlying content barely shows through.
   static const surfaceTranslucent = Color(0xF2FBF8F3);

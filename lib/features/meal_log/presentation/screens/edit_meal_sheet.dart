@@ -5,6 +5,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/meal_analysis_item.dart';
 import '../../domain/entities/meal_log.dart';
 import '../providers/meal_log_providers.dart';
@@ -182,19 +183,12 @@ class _EditMealSheetState extends ConsumerState<_EditMealSheet> {
                       children: [
                         Text(
                           widget.log.mealName,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: AppTypography.titleValue,
                         ),
                         const SizedBox(height: 8),
                         Text(
                           '$_totalCalories Calories',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
-                          ),
+                          style: AppTypography.bodySmallMedium,
                         ),
                         const SizedBox(height: 6),
                         Wrap(
@@ -224,9 +218,9 @@ class _EditMealSheetState extends ConsumerState<_EditMealSheet> {
                 ],
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Ingredients',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                style: AppTypography.titleMedium,
               ),
               const SizedBox(height: 10),
               Flexible(
@@ -313,7 +307,7 @@ class _UndoBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: AppColors.onScrim, fontSize: 13),
+              style: AppTypography.bodySmall.copyWith(color: AppColors.onScrim),
             ),
           ),
           TextButton(
@@ -389,7 +383,7 @@ class _NutrientPill extends StatelessWidget {
         children: [
           Icon(icon, size: 12, color: color),
           const SizedBox(width: 4),
-          Text(text, style: const TextStyle(fontSize: 11)),
+          Text(text, style: AppTypography.caption11),
         ],
       ),
     );

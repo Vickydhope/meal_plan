@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/meal_type.dart';
 import '../providers/meal_log_providers.dart';
 import 'camera_scan/camera_frame.dart';
@@ -158,9 +159,7 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
                         ? null
                         : Text(
                             mealName,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                            style: AppTypography.titleValue.copyWith(
                               color: Colors.white,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -197,9 +196,8 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
                         padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                         child: Text(
                           state.error!,
-                          style: const TextStyle(
+                          style: AppTypography.bodySmall.copyWith(
                             color: AppColors.error,
-                            fontSize: 13,
                           ),
                         ),
                       ),

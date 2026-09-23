@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_route.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../../shared/widgets/calorie_overview_card.dart';
 import '../../../../shared/widgets/shimmer_box.dart';
@@ -57,13 +58,15 @@ class HomeScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
+            Text(
               'Good morning!',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
             Text(
               state.username ?? 'Guest!',
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              style: AppTypography.titleLarge,
             ),
           ],
         ),
@@ -233,15 +236,17 @@ class _NoMealsForDay extends StatelessWidget {
           color: AppColors.textDisabled,
         ),
         const SizedBox(height: 12),
-        const Text(
+        Text(
           'No meals logged',
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+          style: AppTypography.titleMedium,
         ),
         const SizedBox(height: 4),
-        const Text(
+        Text(
           "You didn't log any food on this day.",
           textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          style: AppTypography.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+          ),
         ),
       ],
     );
@@ -349,10 +354,7 @@ class _MealSectionCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTypography.valueLarge,
                 ),
                 if (isToday)
                   TextButton.icon(
@@ -476,19 +478,15 @@ class _MealItemRow extends ConsumerWidget {
                 children: [
                   Text(
                     log.mealName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
+                    style: AppTypography.bodySmallMedium.copyWith(
+                      color: AppColors.textPrimary,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '+ ${log.totalCalories} Calories',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                    ),
+                    style: AppTypography.caption12Medium,
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -545,7 +543,7 @@ class _MacroPill extends StatelessWidget {
         children: [
           Icon(icon, size: 12, color: color),
           const SizedBox(width: 4),
-          Text(text, style: const TextStyle(fontSize: 11)),
+          Text(text, style: AppTypography.caption11),
         ],
       ),
     );

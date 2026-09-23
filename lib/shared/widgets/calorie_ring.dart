@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import 'ring_painter.dart';
 
 /// The centered "729 of 1512 kcal" donut ring, matching the reference
@@ -45,18 +46,12 @@ class CalorieRing extends StatelessWidget {
               children: [
                 Text(
                   '$consumed',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTypography.statValueXLarge,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'of $target kcal',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
+                  style: AppTypography.bodyMedium,
                 ),
               ],
             ),

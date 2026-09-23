@@ -3,6 +3,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/theme/app_colors.dart';
+import '../../../../../core/theme/app_typography.dart';
 import '../../../../../shared/widgets/app_snackbar.dart';
 import '../../../domain/entities/meal_analysis_item.dart';
 import '../../providers/meal_log_providers.dart';
@@ -85,13 +86,9 @@ class IngredientsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Detected ingredients',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
+          style: AppTypography.titleMedium,
         ),
         const SizedBox(height: 10),
         for (final entry in items.asMap().entries) ...[
@@ -238,9 +235,8 @@ class _IngredientCardState extends State<IngredientCard> {
                   children: [
                     Text(
                       item.foodName,
-                      style: const TextStyle(
+                      style: AppTypography.bodyMedium.copyWith(
                         fontWeight: FontWeight.w600,
-                        fontSize: 14,
                         color: AppColors.textPrimary,
                       ),
                     ),
@@ -248,8 +244,7 @@ class _IngredientCardState extends State<IngredientCard> {
                       category != null
                           ? '$category · ${item.adjustedWeightG.round()}g'
                           : '${item.adjustedWeightG.round()}g',
-                      style: const TextStyle(
-                        fontSize: 12,
+                      style: AppTypography.caption12.copyWith(
                         color: AppColors.textTertiary,
                       ),
                     ),
@@ -258,11 +253,7 @@ class _IngredientCardState extends State<IngredientCard> {
               ),
               Text(
                 '${item.adjustedCalories.round()} kcal',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
+                style: AppTypography.bodySmallMedium,
               ),
               if (widget.onPortionChanged != null)
                 IconButton(
@@ -326,18 +317,15 @@ class _IngredientCardState extends State<IngredientCard> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Portion',
-                              style: TextStyle(
-                                fontSize: 12,
+                              style: AppTypography.caption12.copyWith(
                                 color: AppColors.textTertiary,
                               ),
                             ),
                             Text(
                               '${portionSteps[stepIndex]}x',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                              style: AppTypography.caption12Bold.copyWith(
                                 color: AppColors.primary,
                               ),
                             ),
@@ -403,7 +391,7 @@ class _MacroPill extends StatelessWidget {
         children: [
           Icon(icon, size: 12, color: color),
           const SizedBox(width: 4),
-          Text(text, style: const TextStyle(fontSize: 11)),
+          Text(text, style: AppTypography.caption11),
         ],
       ),
     );
@@ -421,28 +409,27 @@ class AnalyzingNextCard extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          SizedBox(
+          const SizedBox(
             height: 16,
             width: 16,
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
-          SizedBox(width: 16),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Cravia is analyzing next ingredient...',
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: AppTypography.bodySmall.copyWith(
                     color: AppColors.textSecondary,
                   ),
                 ),
                 Text(
                   'Identifying category',
-                  style: TextStyle(fontSize: 11, color: AppColors.textDisabled),
+                  style: AppTypography.caption11.copyWith(color: AppColors.textDisabled),
                 ),
               ],
             ),

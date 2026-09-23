@@ -48,7 +48,7 @@ class _ShimmerBoxState extends State<ShimmerBox> with SingleTickerProviderStateM
             return LinearGradient(
               colors: const [
                 AppColors.surfaceMuted,
-                Color(0xFFF7F7F7),
+                AppColors.shimmerHighlight,
                 AppColors.surfaceMuted,
               ],
               stops: const [0.35, 0.5, 0.65],
