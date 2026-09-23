@@ -3,9 +3,10 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../core/providers/core_providers.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../meal_log/presentation/providers/meal_log_providers.dart';
 import '../../domain/entities/user_profile.dart';
 import '../providers/profile_providers.dart';
@@ -184,10 +185,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _fullNameController.text.isEmpty
                       ? 'Add your name'
                       : _fullNameController.text,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTypography.titleValue,
                 ),
               ),
               const SizedBox(height: 2),
@@ -365,12 +363,7 @@ class _ProfileSection extends StatelessWidget {
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
             title.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textTertiary,
-              letterSpacing: 0.5,
-            ),
+            style: AppTypography.label,
           ),
         ),
         Container(
@@ -459,14 +452,15 @@ class _ProfileField extends StatelessWidget {
                         validator: validator,
                         textAlign: TextAlign.end,
                         maxLines: 1,
-                        style: const TextStyle(
-                          fontSize: 14,
+                        style: AppTypography.bodyMedium.copyWith(
                           color: AppColors.textPrimary,
                         ),
                         decoration: const InputDecoration(
                           isCollapsed: true,
                           contentPadding: EdgeInsets.zero,
                           border: InputBorder.none,
+                          // Zero-size, not a real style — hides the field's
+                          // error text without reserving layout space.
                           errorStyle: TextStyle(fontSize: 0, height: 0),
                         ),
                       )
@@ -486,7 +480,7 @@ class _ProfileField extends StatelessWidget {
       textAlign: TextAlign.end,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+      style: AppTypography.bodyMedium,
     );
   }
 }

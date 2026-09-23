@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/app_shell/presentation/screens/app_shell.dart';
 import '../../features/ask_ai/presentation/screens/ask_ai_screen.dart';
-import '../../features/landing/presentation/screens/landing_screen.dart';
+import '../../features/auth/presentation/providers/auth_providers.dart';
+import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/signup_screen.dart';
 import '../../features/meal_log/domain/entities/meal_type.dart';
 import '../../features/meal_log/presentation/screens/camera_scan_screen.dart';
 import '../../features/meal_log/presentation/screens/home_screen.dart';
@@ -14,7 +16,6 @@ import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../../features/profile/presentation/providers/profile_providers.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
-import '../providers/core_providers.dart';
 import 'app_route.dart';
 import 'auth_loading_screen.dart';
 import 'router_refresh_notifier.dart';
@@ -24,15 +25,16 @@ import 'router_refresh_notifier.dart';
 /// `_AuthGate` used to implement with a `StreamBuilder`/`AsyncValue.when`.
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: AppRoute.landing.path,
+    initialLocation: AppRoute.login.path,
     refreshListenable: ref.watch(routerRefreshNotifierProvider),
     redirect: (context, state) {
+      final onAuthScreen = state.matchedLocation == AppRoute.login.path ||
+          state.matchedLocation == AppRoute.signup.path;
+
       final userIdAsync = ref.read(authUserIdProvider);
       final userId = userIdAsync.valueOrNull;
       if (userIdAsync.isLoading || userId == null) {
-        return state.matchedLocation == AppRoute.landing.path
-            ? null
-            : AppRoute.landing.path;
+        return onAuthScreen ? null : AppRoute.login.path;
       }
 
       final profileAsync = ref.read(currentUserProfileProvider);
@@ -50,7 +52,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 ? null
                 : AppRoute.onboarding.path;
           }
-          final atGateRoute = state.matchedLocation == AppRoute.landing.path ||
+          final atGateRoute = onAuthScreen ||
               state.matchedLocation == AppRoute.onboarding.path ||
               state.matchedLocation == AppRoute.authLoading.path;
           return atGateRoute ? AppRoute.home.path : null;
@@ -59,9 +61,14 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(
-        name: AppRoute.landing.name,
-        path: AppRoute.landing.path,
-        builder: (context, state) => const LandingScreen(),
+        name: AppRoute.login.name,
+        path: AppRoute.login.path,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        name: AppRoute.signup.name,
+        path: AppRoute.signup.path,
+        builder: (context, state) => const SignupScreen(),
       ),
       GoRoute(
         name: AppRoute.onboarding.name,

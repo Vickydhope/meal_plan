@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/providers/core_providers.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../profile/domain/entities/activity_level.dart';
 import '../../../profile/domain/entities/goal.dart';
 import '../../../profile/domain/entities/sex.dart';

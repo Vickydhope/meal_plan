@@ -1,71 +1,38 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/error/app_exception.dart';
-import '../../../../core/providers/core_providers.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 
-/// First screen a fresh install sees: a simple email/password sign
-/// up/login form. On success, `main.dart`'s auth-state listener swaps in
-/// [AppShell] — this screen doesn't navigate itself.
-class LandingScreen extends ConsumerStatefulWidget {
-  const LandingScreen({super.key});
+/// Shared email/password form chrome for [LoginScreen]/[SignupScreen] — the
+/// logo, title, subtitle, the two fields, error/info banners, submit
+/// button, and a footer slot for the "switch screens" link. Each screen
+/// owns its own controllers, validation, and submit logic; this widget is
+/// purely the visual shell so the two screens can't drift out of sync.
+class AuthFormCard extends StatelessWidget {
+  const AuthFormCard({
+    super.key,
+    required this.formKey,
+    required this.subtitle,
+    required this.emailController,
+    required this.passwordController,
+    required this.submitLabel,
+    required this.submitting,
+    required this.onSubmit,
+    required this.footer,
+    this.error,
+    this.info,
+  });
 
-  @override
-  ConsumerState<LandingScreen> createState() => _LandingScreenState();
-}
-
-class _LandingScreenState extends ConsumerState<LandingScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-
-  bool _isSignUp = false;
-  bool _submitting = false;
-  String? _error;
-  String? _info;
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (_submitting || !(_formKey.currentState?.validate() ?? false)) return;
-
-    setState(() {
-      _submitting = true;
-      _error = null;
-      _info = null;
-    });
-
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
-    final auth = ref.read(authRepositoryProvider);
-
-    try {
-      if (_isSignUp) {
-        await auth.signUpWithEmail(email: email, password: password);
-        if (auth.currentUserId == null) {
-          // Email confirmation is required before a session is issued.
-          setState(() {
-            _info = 'Check your email to confirm your account, then log in.';
-            _isSignUp = false;
-          });
-        }
-      } else {
-        await auth.signInWithEmail(email: email, password: password);
-      }
-      // On success while no confirmation is required, main.dart's
-      // authStateChanges listener swaps this screen out automatically.
-    } on AuthFailureException catch (err) {
-      setState(() => _error = err.message);
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
-  }
+  final GlobalKey<FormState> formKey;
+  final String subtitle;
+  final TextEditingController emailController;
+  final TextEditingController passwordController;
+  final String submitLabel;
+  final bool submitting;
+  final VoidCallback onSubmit;
+  final Widget footer;
+  final String? error;
+  final String? info;
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +42,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Form(
-            key: _formKey,
+            key: formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -86,25 +53,22 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                   fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'Cravia',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  style: AppTypography.displayMedium,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _isSignUp
-                      ? 'Create an account to get started.'
-                      : 'Log in to your account.',
+                  subtitle,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 15,
+                  style: AppTypography.bodyLarge.copyWith(
                     color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 32),
                 TextFormField(
-                  controller: _emailController,
+                  controller: emailController,
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
                   decoration: const InputDecoration(
@@ -124,7 +88,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
-                  controller: _passwordController,
+                  controller: passwordController,
                   obscureText: true,
                   decoration: const InputDecoration(
                     labelText: 'Password',
@@ -138,27 +102,27 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                     }
                     return null;
                   },
-                  onFieldSubmitted: (_) => _submit(),
+                  onFieldSubmitted: (_) => onSubmit(),
                 ),
-                if (_error != null) ...[
+                if (error != null) ...[
                   const SizedBox(height: 16),
                   Text(
-                    _error!,
-                    style: const TextStyle(color: AppColors.error),
+                    error!,
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.error),
                   ),
                 ],
-                if (_info != null) ...[
+                if (info != null) ...[
                   const SizedBox(height: 16),
                   Text(
-                    _info!,
-                    style: const TextStyle(color: AppColors.success),
+                    info!,
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.success),
                   ),
                 ],
                 const SizedBox(height: 24),
                 SizedBox(
                   height: 52,
                   child: FilledButton(
-                    onPressed: _submitting ? null : _submit,
+                    onPressed: submitting ? null : onSubmit,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.onScrim,
@@ -166,7 +130,7 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                         borderRadius: BorderRadius.circular(28),
                       ),
                     ),
-                    child: _submitting
+                    child: submitting
                         ? const SizedBox(
                             width: 20,
                             height: 20,
@@ -175,24 +139,11 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
                               color: AppColors.onScrim,
                             ),
                           )
-                        : Text(_isSignUp ? 'Sign up' : 'Log in'),
+                        : Text(submitLabel),
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextButton(
-                  onPressed: _submitting
-                      ? null
-                      : () => setState(() {
-                            _isSignUp = !_isSignUp;
-                            _error = null;
-                            _info = null;
-                          }),
-                  child: Text(
-                    _isSignUp
-                        ? 'Already have an account? Log in'
-                        : "Don't have an account? Sign up",
-                  ),
-                ),
+                footer,
                 const SizedBox(height: 24),
               ],
             ),

@@ -60,8 +60,14 @@ lib/
   core/                        # cross-cutting, not specific to any feature
     config/supabase_config.dart
     error/app_exception.dart   # AppException hierarchy thrown by repositories
-    auth/                      # AuthRepository (domain) + SupabaseAuthRepository (impl)
-    providers/core_providers.dart  # supabaseClientProvider, authRepositoryProvider
+    providers/core_providers.dart  # supabaseClientProvider
+  features/auth/
+    domain/repositories/auth_repository.dart        # AuthRepository interface
+    data/repositories/supabase_auth_repository.dart # SupabaseAuthRepository impl
+    presentation/
+      providers/auth_providers.dart  # authRepositoryProvider, authUserIdProvider
+      widgets/auth_form_card.dart    # shared email/password form chrome
+      screens/                       # LoginScreen, SignupScreen — separate screens, not a mode toggle
   features/meal_log/
     domain/
       entities/                # MealLog, MealAnalysisItem, PendingMealAnalysis, UserProfile
@@ -91,7 +97,7 @@ lib/
 
 **State management**: Riverpod (`flutter_riverpod`), single `NotifierProvider` (`mealLogProvider` → `MealLogNotifier`) holding all meal-log/profile state (`MealLogState`). The notifier is a thin orchestrator — all Supabase-specific logic lives in `data/`.
 
-**Backend**: Supabase Postgres with `meal_logs` and `profiles` tables (see `MealLogDto`/`UserProfileDto` in `data/models/` for the expected schema, and `supabase/migrations/` for the versioned schema — a `supabase db reset` against the local stack replays these from scratch). Auth is email/password (`AuthRepository.signUpWithEmail`/`signInWithEmail`/`signOut`, `lib/core/auth/`), reactively gated via `AuthRepository.userIdChanges` in the router. `main.dart` is the only place allowed to touch `Supabase.initialize`/`Supabase.instance` directly — everywhere else goes through `core/providers/core_providers.dart`.
+**Backend**: Supabase Postgres with `meal_logs` and `profiles` tables (see `MealLogDto`/`UserProfileDto` in `data/models/` for the expected schema, and `supabase/migrations/` for the versioned schema — a `supabase db reset` against the local stack replays these from scratch). Auth is email/password (`AuthRepository.signUpWithEmail`/`signInWithEmail`/`signOut`, `lib/features/auth/`), reactively gated via `AuthRepository.userIdChanges` in the router. `LoginScreen` and `SignupScreen` are separate top-level routes (`AppRoute.login`/`AppRoute.signup`) sharing visual chrome via `AuthFormCard`, not one screen toggling between modes. `main.dart` is the only place allowed to touch `Supabase.initialize`/`Supabase.instance` directly — everywhere else goes through `core/providers/core_providers.dart`.
 
 **Navigation**: `go_router` (`lib/core/router/app_router.dart`), gated by a `redirect` callback that branches on auth state (`authUserIdProvider`) and onboarding completion (`currentUserProfileProvider`), refreshed via `router_refresh_notifier.dart`. Every destination is a case of the `AppRoute` enum (`lib/core/router/app_route.dart`) pairing a name with its path — call sites navigate via `AppRoute.x.name`/`.path`, never a raw string literal. `AppShell` (bottom-nav tabs `HomeScreen`/`AskAiScreen`/`PlanScreen` plus a center camera FAB) is a `StatefulShellRoute.indexedStack` branch; `CameraScanScreen`, `ScanResultScreen`, `SettingsScreen`, `NotificationsScreen`, and `ProfileScreen` are top-level routes pushed above the shell. Raw `Navigator.of(context)` is only used for local dialog/sheet dismissal (`.pop()`), never for route navigation.
 

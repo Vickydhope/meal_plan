@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/app_exception.dart';
-import '../../../../core/providers/core_providers.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../domain/entities/meal_analysis_item.dart';
 import '../../domain/entities/meal_analysis_stream_event.dart';

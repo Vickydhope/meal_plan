@@ -2,7 +2,8 @@
 /// Navigation call sites reference [name]/[path] through this enum rather
 /// than raw string literals.
 enum AppRoute {
-  landing('/landing'),
+  login('/login'),
+  signup('/signup'),
   onboarding('/onboarding'),
   authLoading('/loading'),
   home('/home'),

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/core_providers.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../data/datasources/avatar_remote_data_source.dart';
 import '../../data/datasources/profile_remote_data_source.dart';
 import '../../data/repositories/avatar_repository_impl.dart';
