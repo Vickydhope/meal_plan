@@ -10,19 +10,20 @@ import '../../../app_shell/presentation/screens/app_shell.dart'
 import '../../domain/entities/chat_message.dart';
 import '../providers/ask_ai_providers.dart';
 
-/// Quick-start prompts shown before the user has sent anything, and as a
-/// slim strip above the input once a conversation is underway.
+/// Quick-start prompts shown only before the user has sent anything.
 const _quickSuggestions = [
   'How many calories should I eat today?',
+  'How did I do this week?',
   'Suggest a high-protein breakfast',
   "What's a healthy snack?",
   'Explain my macros',
+  'Summarize my last 30 days',
 ];
 
 /// Chat UI for the nutrition assistant, backed by the `ask-ai` Supabase
 /// Edge Function (Gemini), personalized with the signed-in user's profile
-/// and today's logged meals. See [AskAiNotifier] for the streaming
-/// send/receive orchestration.
+/// and their meal history (today, last 7/30/365 days). See
+/// [AskAiNotifier] for the streaming send/receive orchestration.
 class AskAiScreen extends ConsumerStatefulWidget {
   const AskAiScreen({super.key});
 
@@ -30,15 +31,33 @@ class AskAiScreen extends ConsumerStatefulWidget {
   ConsumerState<AskAiScreen> createState() => _AskAiScreenState();
 }
 
-class _AskAiScreenState extends ConsumerState<AskAiScreen> {
+class _AskAiScreenState extends ConsumerState<AskAiScreen>
+    with WidgetsBindingObserver {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // MediaQueryData.fromView (used for the real keyboard-inset read below)
+  // is a one-off snapshot, not an InheritedWidget subscription — nothing
+  // rebuilds this widget when the keyboard itself opens/closes. This is
+  // the actual notification for that: Flutter calls it on every window
+  // metrics change, keyboard included.
+  @override
+  void didChangeMetrics() {
+    if (mounted) setState(() {});
   }
 
   void _scrollToBottom() {
@@ -62,7 +81,12 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen> {
   @override
   Widget build(BuildContext context) {
     ref.listen(askAiProvider, (previous, next) {
-      if (next.messages.length != (previous?.messages.length ?? 0)) {
+      final lengthChanged =
+          next.messages.length != (previous?.messages.length ?? 0);
+      final lastTextGrew = !lengthChanged &&
+          next.messages.isNotEmpty &&
+          next.messages.last.text != previous?.messages.lastOrNull?.text;
+      if (lengthChanged || lastTextGrew) {
         _scrollToBottom();
       }
       if (next.error != null && next.error != previous?.error) {
@@ -73,9 +97,18 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen> {
     });
 
     final state = ref.watch(askAiProvider);
-    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    // The AppShell's own Scaffold already consumes the keyboard inset for
+    // its resize and hands descendants a MediaQuery with viewInsets.bottom
+    // zeroed out — reading straight off the window instead of the ambient
+    // MediaQuery here reflects the keyboard's real, current state.
+    final keyboardOpen =
+        MediaQueryData.fromView(View.of(context)).viewInsets.bottom > 0;
 
     return Scaffold(
+      // The AppShell's own Scaffold already resizes the whole tab body to
+      // avoid the keyboard — resizing here too would push this input bar
+      // up by the keyboard height twice.
+      resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -99,13 +132,10 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                     itemCount: state.messages.length,
                     itemBuilder: (context, index) {
-                      final message = state.messages[index];
-                      return _ChatBubble(message: message);
+                      return _ChatBubble(message: state.messages[index]);
                     },
                   ),
           ),
-          if (state.messages.isNotEmpty)
-            _QuickSuggestionsStrip(onSuggestionTap: _send),
           Padding(
             padding: EdgeInsets.fromLTRB(
               16,
@@ -178,34 +208,6 @@ class _WelcomeState extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Slim horizontally-scrolling row of the same starter prompts, kept
-/// available above the input once the conversation is underway.
-class _QuickSuggestionsStrip extends StatelessWidget {
-  const _QuickSuggestionsStrip({required this.onSuggestionTap});
-
-  final ValueChanged<String> onSuggestionTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 36,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _quickSuggestions.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final suggestion = _quickSuggestions[index];
-          return _SuggestionChip(
-            label: suggestion,
-            onTap: () => onSuggestionTap(suggestion),
-          );
-        },
       ),
     );
   }

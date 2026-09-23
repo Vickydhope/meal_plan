@@ -61,7 +61,11 @@ class AskAiNotifier extends Notifier<AskAiState> {
   void _appendDelta(StringBuffer buffer, String text) {
     buffer.write(text);
     _replaceLastMessage(
-      ChatMessage(role: ChatRole.assistant, text: buffer.toString(), isStreaming: true),
+      ChatMessage(
+        role: ChatRole.assistant,
+        text: buffer.toString(),
+        isStreaming: true,
+      ),
     );
   }
 

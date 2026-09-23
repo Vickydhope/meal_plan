@@ -3,7 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:streamGenerateContent";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
@@ -17,9 +17,10 @@ const SYSTEM_PROMPT =
   "calorie-tracking app. If asked your name or who you are, answer " +
   "'Cravia' — don't call yourself a generic assistant or mention Gemini " +
   "or Google. Answer the user's question about nutrition, their meals, " +
-  "or their plan. You're given the user's daily calorie target, goal, and a " +
-  "summary of what they've eaten today (if any) as context below — use " +
-  "it to personalize your answer when relevant, but don't recite it back " +
+  "or their plan. You're given the user's daily calorie target, goal, and " +
+  "summaries of what they've eaten today, in the last 7 days, the last 30 " +
+  "days, and the last 365 days (if any) as context below — use it to " +
+  "personalize your answer when relevant, but don't recite it back " +
   "verbatim unless asked. The Context block below is recomputed fresh " +
   "from the database on every single message in this conversation. If it " +
   "conflicts with anything you or the user said earlier in this chat " +
@@ -105,10 +106,42 @@ async function callGeminiStream(
   return { error: "Gemini API error", detail: lastDetail };
 }
 
-/** Builds the "today so far" nutrition summary injected into the system prompt. */
+type LoggedMeal = Record<string, unknown>;
+
+/** Sums calories/macros for the logs whose `created_at` falls in the last [days]. */
+function summarizeRange(logs: LoggedMeal[], days: number): {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+  mealCount: number;
+  avgCaloriesPerDay: number;
+} {
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const inRange = logs.filter(
+    (log) => new Date(log.created_at as string).getTime() >= cutoff,
+  );
+  const totals = inRange.reduce(
+    (acc, log) => ({
+      calories: acc.calories + (Number(log.total_calories) || 0),
+      protein: acc.protein + (Number(log.total_protein) || 0),
+      carbs: acc.carbs + (Number(log.total_carbs) || 0),
+      fats: acc.fats + (Number(log.total_fats) || 0),
+    }),
+    { calories: 0, protein: 0, carbs: 0, fats: 0 },
+  );
+  return {
+    ...totals,
+    mealCount: inRange.length,
+    avgCaloriesPerDay: Math.round(totals.calories / days),
+  };
+}
+
+/** Builds the nutrition summary (today, last week/month/year) injected into the system prompt. */
 function buildContextBlock(
   profile: Record<string, unknown> | null,
-  todayLogs: Array<Record<string, unknown>>,
+  todayLogs: LoggedMeal[],
+  yearOfLogs: LoggedMeal[],
 ): string {
   const lines: string[] = [];
 
@@ -140,6 +173,21 @@ function buildContextBlock(
         `logged meal(s): ${
           todayLogs.map((log) => log.meal_name).join(", ")
         }.`,
+    );
+  }
+
+  for (const [label, days] of [
+    ["Last 7 days", 7],
+    ["Last 30 days", 30],
+    ["Last 365 days", 365],
+  ] as const) {
+    const s = summarizeRange(yearOfLogs, days);
+    lines.push(
+      s.mealCount === 0
+        ? `${label}: no meals logged.`
+        : `${label}: ${s.calories} kcal total (avg ${s.avgCaloriesPerDay} ` +
+          `kcal/day, protein ${s.protein}g, carbs ${s.carbs}g, fats ` +
+          `${s.fats}g) across ${s.mealCount} logged meal(s).`,
     );
   }
 
@@ -268,16 +316,32 @@ Deno.serve(async (req: Request) => {
     todayLogsQuery = todayLogsQuery.lt("created_at", dayEnd.toISOString());
   }
 
-  const [{ data: profile }, { data: todayLogs }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("daily_calorie_target, goal, activity_level")
-      .eq("id", userId)
-      .maybeSingle(),
-    todayLogsQuery,
-  ]);
+  // One fetch covering the last year, then sliced in JS for the 7/30/365-day
+  // summaries — cheaper than three separate range queries.
+  const yearStart = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+  const yearLogsQuery = supabase
+    .from("meal_logs")
+    .select("total_calories, total_protein, total_carbs, total_fats, created_at")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .gte("created_at", yearStart.toISOString());
 
-  const contextBlock = buildContextBlock(profile ?? null, todayLogs ?? []);
+  const [{ data: profile }, { data: todayLogs }, { data: yearLogs }] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select("daily_calorie_target, goal, activity_level")
+        .eq("id", userId)
+        .maybeSingle(),
+      todayLogsQuery,
+      yearLogsQuery,
+    ]);
+
+  const contextBlock = buildContextBlock(
+    profile ?? null,
+    todayLogs ?? [],
+    yearLogs ?? [],
+  );
 
   const geminiPayload = {
     systemInstruction: {
