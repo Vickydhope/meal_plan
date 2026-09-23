@@ -12,6 +12,13 @@ void main() {
   late _MockProfileRepository repository;
   late CompleteOnboardingUseCase useCase;
 
+  setUpAll(() {
+    registerFallbackValue(Sex.male);
+    registerFallbackValue(ActivityLevel.moderate);
+    registerFallbackValue(Goal.maintain);
+    registerFallbackValue(DateTime(1996, 1, 1));
+  });
+
   setUp(() {
     repository = _MockProfileRepository();
     useCase = CompleteOnboardingUseCase(repository);

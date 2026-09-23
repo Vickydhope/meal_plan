@@ -94,9 +94,12 @@ void main() {
       now: now, // 2026-01-01, exactly the birthday -> 30
     );
 
+    // Mifflin-St Jeor subtracts 5*age, so the younger age (29, day before
+    // the birthday) yields a *higher* target than the older age (30, on
+    // the birthday) - fewer calories subtracted for age.
     expect(
       dayBeforeBirthday.dailyCalorieTarget,
-      lessThan(onBirthday.dailyCalorieTarget),
+      greaterThan(onBirthday.dailyCalorieTarget),
     );
   });
 }
