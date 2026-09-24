@@ -13,6 +13,7 @@ flutter pub get                     # install dependencies
 flutter analyze                     # static analysis (flutter_lints)
 flutter test                        # run all tests
 flutter test test/path/to/file.dart # run a single test file
+deno test supabase/functions        # edge function unit tests (no local deno? docker run --rm -v "$PWD":/app -w /app denoland/deno deno test supabase/functions)
 scripts/check_architecture.sh       # grep-based guard: domain purity, no hardcoded fontSize/Color(0x...) outside core/theme, no data-layer construction outside providers
 scripts/run_dev.sh                  # run the dev flavor (local Supabase stack) on a connected device/simulator
 scripts/run_prod.sh                 # run the prod flavor (live Supabase project) on a connected device/simulator
