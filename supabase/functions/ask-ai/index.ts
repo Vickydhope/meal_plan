@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { buildContextBlock, daysBefore } from "./context.ts";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const GEMINI_URL =
@@ -17,7 +18,9 @@ const SYSTEM_PROMPT =
   "calorie-tracking app. If asked your name or who you are, answer " +
   "'Cravia' — don't call yourself a generic assistant or mention Gemini " +
   "or Google. Answer the user's question about nutrition, their meals, " +
-  "or their plan. You're given the user's daily calorie target, goal, and " +
+  "or their plan. You're given the user's daily calorie target, goal, " +
+  "weight, activity synced from their phone's health app (steps and " +
+  "active energy burned, when available), and " +
   "summaries of what they've eaten today, in the last 7 days, the last 30 " +
   "days, and the last 365 days (if any) as context below — use it to " +
   "personalize your answer when relevant, but don't recite it back " +
@@ -32,7 +35,8 @@ const SYSTEM_PROMPT =
   "question, answer from general nutrition knowledge instead. Never " +
   "invent specific numbers for the user's own data that weren't given " +
   "to you. Stay strictly within Cravia's purpose: nutrition, food, meals, " +
-  "calories, macros, diet and eating habits, and how to use this app's " +
+  "calories, macros, diet and eating habits, exercise and activity as they " +
+  "relate to calories and the budget, weight, and how to use this app's " +
   "meal-logging features. If asked anything outside that scope (general " +
   "knowledge, coding, entertainment, current events, or any other " +
   "unrelated topic), don't answer it — reply with one short, friendly " +
@@ -106,94 +110,6 @@ async function callGeminiStream(
   return { error: "Gemini API error", detail: lastDetail };
 }
 
-type LoggedMeal = Record<string, unknown>;
-
-/** Sums calories/macros for the logs whose `created_at` falls in the last [days]. */
-function summarizeRange(logs: LoggedMeal[], days: number): {
-  calories: number;
-  protein: number;
-  carbs: number;
-  fats: number;
-  mealCount: number;
-  avgCaloriesPerDay: number;
-} {
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-  const inRange = logs.filter(
-    (log) => new Date(log.created_at as string).getTime() >= cutoff,
-  );
-  const totals = inRange.reduce(
-    (acc, log) => ({
-      calories: acc.calories + (Number(log.total_calories) || 0),
-      protein: acc.protein + (Number(log.total_protein) || 0),
-      carbs: acc.carbs + (Number(log.total_carbs) || 0),
-      fats: acc.fats + (Number(log.total_fats) || 0),
-    }),
-    { calories: 0, protein: 0, carbs: 0, fats: 0 },
-  );
-  return {
-    ...totals,
-    mealCount: inRange.length,
-    avgCaloriesPerDay: Math.round(totals.calories / days),
-  };
-}
-
-/** Builds the nutrition summary (today, last week/month/year) injected into the system prompt. */
-function buildContextBlock(
-  profile: Record<string, unknown> | null,
-  todayLogs: LoggedMeal[],
-  yearOfLogs: LoggedMeal[],
-): string {
-  const lines: string[] = [];
-
-  if (profile) {
-    if (profile.daily_calorie_target) {
-      lines.push(`Daily calorie target: ${profile.daily_calorie_target} kcal`);
-    }
-    if (profile.goal) lines.push(`Goal: ${profile.goal}`);
-    if (profile.activity_level) {
-      lines.push(`Activity level: ${profile.activity_level}`);
-    }
-  }
-
-  if (todayLogs.length === 0) {
-    lines.push("No meals logged yet today.");
-  } else {
-    const totals = todayLogs.reduce(
-      (acc, log) => ({
-        calories: acc.calories + (Number(log.total_calories) || 0),
-        protein: acc.protein + (Number(log.total_protein) || 0),
-        carbs: acc.carbs + (Number(log.total_carbs) || 0),
-        fats: acc.fats + (Number(log.total_fats) || 0),
-      }),
-      { calories: 0, protein: 0, carbs: 0, fats: 0 },
-    );
-    lines.push(
-      `Eaten today: ${totals.calories} kcal (protein ${totals.protein}g, ` +
-        `carbs ${totals.carbs}g, fats ${totals.fats}g) across ${todayLogs.length} ` +
-        `logged meal(s): ${
-          todayLogs.map((log) => log.meal_name).join(", ")
-        }.`,
-    );
-  }
-
-  for (const [label, days] of [
-    ["Last 7 days", 7],
-    ["Last 30 days", 30],
-    ["Last 365 days", 365],
-  ] as const) {
-    const s = summarizeRange(yearOfLogs, days);
-    lines.push(
-      s.mealCount === 0
-        ? `${label}: no meals logged.`
-        : `${label}: ${s.calories} kcal total (avg ${s.avgCaloriesPerDay} ` +
-          `kcal/day, protein ${s.protein}g, carbs ${s.carbs}g, fats ` +
-          `${s.fats}g) across ${s.mealCount} logged meal(s).`,
-    );
-  }
-
-  return lines.join("\n");
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -247,6 +163,8 @@ Deno.serve(async (req: Request) => {
     history?: Array<{ role?: string; text?: string }>;
     dayStart?: string;
     dayEnd?: string;
+    localDate?: string;
+    calorieBudget?: number;
   };
   try {
     body = await req.json();
@@ -326,22 +244,55 @@ Deno.serve(async (req: Request) => {
     .is("deleted_at", null)
     .gte("created_at", yearStart.toISOString());
 
-  const [{ data: profile }, { data: todayLogs }, { data: yearLogs }] =
-    await Promise.all([
-      supabase
-        .from("profiles")
-        .select("daily_calorie_target, goal, activity_level")
-        .eq("id", userId)
-        .maybeSingle(),
-      todayLogsQuery,
-      yearLogsQuery,
-    ]);
+  // Both come from the client and go into the prompt, so only accept the
+  // exact shapes expected.
+  const localDate = typeof body.localDate === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(body.localDate)
+    ? body.localDate
+    : null;
+  const calorieBudget = typeof body.calorieBudget === "number" &&
+      Number.isInteger(body.calorieBudget) &&
+      body.calorieBudget > 0 && body.calorieBudget < 20000
+    ? body.calorieBudget
+    : null;
 
-  const contextBlock = buildContextBlock(
-    profile ?? null,
-    todayLogs ?? [],
-    yearLogs ?? [],
-  );
+  // Synced by whichever device reads the user's health store (see
+  // GetTodayActivityUseCase), so this works no matter which device asks.
+  const activityQuery = localDate
+    ? supabase
+      .from("daily_activity")
+      .select("day, steps, active_energy_kcal")
+      .eq("user_id", userId)
+      .gte("day", daysBefore(localDate, 6))
+      .lte("day", localDate)
+    : Promise.resolve({ data: [] });
+
+  const [
+    { data: profile },
+    { data: todayLogs },
+    { data: yearLogs },
+    { data: activity },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(
+        "daily_calorie_target, goal, activity_level, weight_kg, calorie_mode",
+      )
+      .eq("id", userId)
+      .maybeSingle(),
+    todayLogsQuery,
+    yearLogsQuery,
+    activityQuery,
+  ]);
+
+  const contextBlock = buildContextBlock({
+    profile: profile ?? null,
+    todayLogs: todayLogs ?? [],
+    yearOfLogs: yearLogs ?? [],
+    activity: activity ?? [],
+    localDate,
+    calorieBudget,
+  });
 
   const geminiPayload = {
     systemInstruction: {

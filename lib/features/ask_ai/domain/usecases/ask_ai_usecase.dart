@@ -10,7 +10,12 @@ class AskAiUseCase {
   Stream<AskAiStreamEvent> call({
     required String question,
     required List<ChatMessage> history,
+    int? calorieBudgetKcal,
   }) {
-    return _repository.ask(question: question, history: history);
+    return _repository.ask(
+      question: question,
+      history: history,
+      calorieBudgetKcal: calorieBudgetKcal,
+    );
   }
 }

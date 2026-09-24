@@ -8,5 +8,6 @@ abstract class AskAiRepository {
   Stream<AskAiStreamEvent> ask({
     required String question,
     required List<ChatMessage> history,
+    int? calorieBudgetKcal,
   });
 }

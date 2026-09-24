@@ -1,3 +1,4 @@
+import '../entities/calorie_mode.dart';
 import '../repositories/profile_repository.dart';
 
 class UpdateProfileUseCase {
@@ -11,6 +12,7 @@ class UpdateProfileUseCase {
     String? fullName,
     String? phone,
     String? avatarPath,
+    CalorieMode? calorieMode,
   }) {
     return _repository.updateProfile(
       userId: userId,
@@ -18,6 +20,7 @@ class UpdateProfileUseCase {
       fullName: fullName,
       phone: phone,
       avatarPath: avatarPath,
+      calorieMode: calorieMode,
     );
   }
 }

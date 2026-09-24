@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/config/supabase_config.dart';
+import '../../../../core/error/app_exception.dart';
 
 /// Raw Supabase Edge Function access for `analyze-food`, streamed as
 /// Server-Sent Events. Turning these into domain events is the
@@ -58,7 +59,12 @@ class FoodAnalysisRemoteDataSource {
       final response = await httpClient.send(request);
       if (response.statusCode != 200) {
         final body = await response.stream.bytesToString();
-        throw Exception('analyze-food returned ${response.statusCode}: $body');
+        throw FoodAnalysisException(
+          edgeFunctionErrorMessage(
+            body,
+            fallback: "Couldn't analyze this photo. Try again.",
+          ),
+        );
       }
 
       String? currentEvent;

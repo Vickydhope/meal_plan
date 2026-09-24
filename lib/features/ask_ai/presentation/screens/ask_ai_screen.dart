@@ -8,7 +8,15 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../app_shell/presentation/screens/app_shell.dart'
     show kAppBottomBarHeight;
 import '../../domain/entities/chat_message.dart';
+import '../../../fitness/presentation/providers/fitness_providers.dart';
 import '../providers/ask_ai_providers.dart';
+
+/// Shown first, only when activity has been synced for the account (from
+/// any device), so they never prompt a question Ask AI can't answer.
+const _activitySuggestions = [
+  "How does today's activity affect my goal?",
+  'How active have I been this week?',
+];
 
 /// Quick-start prompts shown only before the user has sent anything.
 const _quickSuggestions = [
@@ -83,7 +91,8 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
     ref.listen(askAiProvider, (previous, next) {
       final lengthChanged =
           next.messages.length != (previous?.messages.length ?? 0);
-      final lastTextGrew = !lengthChanged &&
+      final lastTextGrew =
+          !lengthChanged &&
           next.messages.isNotEmpty &&
           next.messages.last.text != previous?.messages.lastOrNull?.text;
       if (lengthChanged || lastTextGrew) {
@@ -126,7 +135,10 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
         children: [
           Expanded(
             child: state.messages.isEmpty
-                ? _WelcomeState(onSuggestionTap: _send)
+                ? _WelcomeState(
+                    onSuggestionTap: _send,
+                    hasActivity: ref.watch(todayActivityProvider).value != null,
+                  )
                 : ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -158,9 +170,13 @@ class _AskAiScreenState extends ConsumerState<AskAiScreen>
 /// Centered greeting + the full set of starter prompts, shown before the
 /// user has sent a first message.
 class _WelcomeState extends StatelessWidget {
-  const _WelcomeState({required this.onSuggestionTap});
+  const _WelcomeState({
+    required this.onSuggestionTap,
+    required this.hasActivity,
+  });
 
   final ValueChanged<String> onSuggestionTap;
+  final bool hasActivity;
 
   @override
   Widget build(BuildContext context) {
@@ -200,7 +216,10 @@ class _WelcomeState extends StatelessWidget {
             runSpacing: 8,
             alignment: WrapAlignment.center,
             children: [
-              for (final suggestion in _quickSuggestions)
+              for (final suggestion in [
+                if (hasActivity) ..._activitySuggestions,
+                ..._quickSuggestions,
+              ])
                 _SuggestionChip(
                   label: suggestion,
                   onTap: () => onSuggestionTap(suggestion),

@@ -1,5 +1,6 @@
 import '../../../../core/error/app_exception.dart';
 import '../../domain/entities/activity_level.dart';
+import '../../domain/entities/calorie_mode.dart';
 import '../../domain/entities/goal.dart';
 import '../../domain/entities/sex.dart';
 import '../../domain/entities/user_profile.dart';
@@ -61,6 +62,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
     String? fullName,
     String? phone,
     String? avatarPath,
+    CalorieMode? calorieMode,
   }) async {
     try {
       await _dataSource.upsertProfile(
@@ -70,6 +72,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
           fullName: fullName,
           phone: phone,
           avatarPath: avatarPath,
+          calorieMode: calorieMode,
         ),
       );
     } catch (err) {

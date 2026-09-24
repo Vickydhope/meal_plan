@@ -3,6 +3,7 @@ import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../core/error/app_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
@@ -77,7 +78,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       showAppSnackBar(context, 'Profile updated');
     } catch (err) {
       if (!mounted) return;
-      showAppSnackBar(context, '$err');
+      showAppSnackBar(context, userMessageFor(err));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -139,7 +140,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       showAppSnackBar(context, 'Profile photo updated');
     } catch (err) {
       if (!mounted) return;
-      showAppSnackBar(context, '$err');
+      showAppSnackBar(context, userMessageFor(err));
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }

@@ -1,4 +1,5 @@
 import '../entities/activity_level.dart';
+import '../entities/calorie_mode.dart';
 import '../entities/goal.dart';
 import '../entities/sex.dart';
 import '../entities/user_profile.dart';
@@ -30,5 +31,6 @@ abstract class ProfileRepository {
     String? fullName,
     String? phone,
     String? avatarPath,
+    CalorieMode? calorieMode,
   });
 }

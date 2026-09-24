@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/error/app_exception.dart';
+import '../../../fitness/presentation/providers/fitness_providers.dart';
+import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../domain/entities/ask_ai_stream_event.dart';
 import '../../domain/entities/chat_message.dart';
 import '../providers/ask_ai_providers.dart';
@@ -16,6 +19,22 @@ class AskAiNotifier extends Notifier<AskAiState> {
   AskAiState build() {
     ref.onDispose(() => _replySub?.cancel());
     return const AskAiState();
+  }
+
+  /// Today's budget as `HomeScreen` shows it, so the assistant quotes the
+  /// same number. Waits for the inputs to load — this tab can be opened
+  /// before the home screen has fetched them — and sends nothing (the
+  /// server falls back to the plan target) if they fail.
+  Future<int?> _todayCalorieBudget() async {
+    try {
+      await Future.wait([
+        ref.read(currentUserProfileProvider.future),
+        ref.read(todayActivityProvider.future),
+      ]);
+    } catch (_) {
+      return null;
+    }
+    return ref.read(todayCalorieBudgetProvider);
   }
 
   /// Sends [question], appending it plus a placeholder streaming assistant
@@ -38,9 +57,14 @@ class AskAiNotifier extends Notifier<AskAiState> {
     await _replySub?.cancel();
     final buffer = StringBuffer();
     final completer = Completer<void>();
+    final budget = await _todayCalorieBudget();
 
     _replySub = ref
-        .read(askAiUseCaseProvider)(question: trimmed, history: historyBeforeSend)
+        .read(askAiUseCaseProvider)(
+          question: trimmed,
+          history: historyBeforeSend,
+          calorieBudgetKcal: budget,
+        )
         .listen(
           (event) => switch (event) {
             AskAiDelta(:final text) => _appendDelta(buffer, text),
@@ -49,7 +73,10 @@ class AskAiNotifier extends Notifier<AskAiState> {
               _finishAssistantMessage(buffer.toString(), error: message),
           },
           onError: (Object err) =>
-              _finishAssistantMessage(buffer.toString(), error: '$err'),
+              _finishAssistantMessage(
+                buffer.toString(),
+                error: userMessageFor(err),
+              ),
           onDone: () {
             if (!completer.isCompleted) completer.complete();
           },

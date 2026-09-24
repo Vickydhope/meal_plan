@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import '../../../../core/error/app_exception.dart';
 import '../../domain/entities/meal_analysis_stream_event.dart';
 import '../../domain/repositories/food_analysis_repository.dart';
 import '../datasources/food_analysis_remote_data_source.dart';
@@ -37,7 +38,7 @@ class FoodAnalysisRepositoryImpl implements FoodAnalysisRepository {
         }
       }
     } catch (err) {
-      yield AnalysisFailed('Failed to analyze meal photo: $err');
+      yield AnalysisFailed(userMessageFor(err));
     }
   }
 

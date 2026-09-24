@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Base type for exceptions raised by repositories. Keeping these distinct
 /// from raw plugin/SDK exceptions means the presentation layer can catch a
 /// single known family of errors instead of depending on `supabase_flutter`
@@ -10,6 +12,23 @@ sealed class AppException implements Exception {
   @override
   String toString() => message;
 }
+
+/// Maps any caught error to text safe to show a user. Repository messages
+/// often embed raw SDK errors (e.g. `'Failed to save meal log: $err'`), so
+/// only subtypes whose messages are known-safe pass through.
+String userMessageFor(Object err) => switch (err) {
+  NotSignedInException(:final message) => message,
+  // Built from the edge function's own user-facing `error` text.
+  FoodAnalysisException(:final message) => message,
+  AskAiException(:final message) => message,
+  AuthFailureException(:final message) => message,
+  HealthStoreUnavailableException(:final message) => message,
+  HealthPermissionDeniedException(:final message) => message,
+  MealLogPersistenceException() =>
+    "Couldn't reach the server. Check your connection and try again.",
+  ImageProcessingException() => "Couldn't process that photo. Try again.",
+  _ => 'Something went wrong. Please try again.',
+};
 
 /// Thrown when an operation requires a signed-in user but none is available.
 class NotSignedInException extends AppException {
@@ -30,6 +49,35 @@ class ImageProcessingException extends AppException {
 /// app can't interpret.
 class FoodAnalysisException extends AppException {
   const FoodAnalysisException(super.message);
+}
+
+/// Thrown when the `ask-ai` backend fails.
+class AskAiException extends AppException {
+  const AskAiException(super.message);
+}
+
+/// Thrown when the platform health store can't be used (e.g. Health
+/// Connect isn't installed on Android).
+class HealthStoreUnavailableException extends AppException {
+  const HealthStoreUnavailableException(super.message);
+}
+
+/// Thrown when the user declines health-store read access.
+class HealthPermissionDeniedException extends AppException {
+  const HealthPermissionDeniedException([
+    super.message = 'Allow access to steps, active energy and weight to sync.',
+  ]);
+}
+
+/// The `error` field of an edge function's JSON error body (e.g. the 429
+/// rate-limit text), or [fallback] if the body isn't that shape.
+String edgeFunctionErrorMessage(String body, {required String fallback}) {
+  try {
+    final error = (jsonDecode(body) as Map<String, dynamic>)['error'];
+    return error is String ? error : fallback;
+  } catch (_) {
+    return fallback;
+  }
 }
 
 /// Thrown when sign-up/sign-in/sign-out fails, with [message] already

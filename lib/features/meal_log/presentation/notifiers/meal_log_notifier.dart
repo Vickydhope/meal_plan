@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../../../core/error/app_exception.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../fitness/presentation/providers/fitness_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../domain/entities/meal_analysis_item.dart';
 import '../../domain/entities/meal_analysis_stream_event.dart';
@@ -133,7 +135,7 @@ class MealLogNotifier extends Notifier<MealLogState> {
             state = state.copyWith(
               isProcessing: false,
               isStreaming: false,
-              error: '$err',
+              error: userMessageFor(err),
             );
             if (!completer.isCompleted) completer.complete();
           },
@@ -296,6 +298,7 @@ class MealLogNotifier extends Notifier<MealLogState> {
         userId: userId,
         analysis: pending,
       );
+      _mirrorToHealth(() => ref.read(writeMealToHealthUseCaseProvider)(newLog));
       final isSelectedDay = _isSameDay(newLog.createdAt, state.selectedDate);
       state = state.copyWith(
         logs: isSelectedDay ? [newLog, ...state.logs] : state.logs,
@@ -303,8 +306,21 @@ class MealLogNotifier extends Notifier<MealLogState> {
         clearPendingAnalysis: true,
       );
     } catch (err) {
-      state = state.copyWith(isProcessing: false, error: '$err');
+      state = state.copyWith(isProcessing: false, error: userMessageFor(err));
     }
+  }
+
+  /// Fire-and-forget: the meal is already saved, and the health store is
+  /// only a mirror, so a failure there is reported, not shown as an error.
+  void _mirrorToHealth(Future<void> Function() op) {
+    // Future.sync: a synchronous throw must not escape into the caller's
+    // try/catch and roll back a meal change that did succeed.
+    unawaited(
+      Future.sync(op).catchError(
+        (Object err, StackTrace stack) =>
+            Sentry.captureException(err, stackTrace: stack),
+      ),
+    );
   }
 
   bool _isSameDay(DateTime a, DateTime? b) {
@@ -343,10 +359,11 @@ class MealLogNotifier extends Notifier<MealLogState> {
     state = state.copyWith(logs: [...state.logs]..removeAt(index));
     try {
       await ref.read(deleteMealLogUseCaseProvider)(log.id);
+      _mirrorToHealth(() => ref.read(removeMealFromHealthUseCaseProvider)(log));
     } catch (err) {
       state = state.copyWith(
         logs: [...state.logs]..insert(index, log),
-        error: '$err',
+        error: userMessageFor(err),
       );
       return null;
     }
@@ -361,11 +378,12 @@ class MealLogNotifier extends Notifier<MealLogState> {
     state = state.copyWith(logs: [...state.logs]..insert(index, log));
     try {
       await ref.read(restoreMealLogUseCaseProvider)(log.id);
+      _mirrorToHealth(() => ref.read(writeMealToHealthUseCaseProvider)(log));
     } catch (err) {
       final idx = state.logs.indexWhere((l) => l.id == log.id);
       state = state.copyWith(
         logs: idx == -1 ? state.logs : ([...state.logs]..removeAt(idx)),
-        error: '$err',
+        error: userMessageFor(err),
       );
     }
   }
@@ -375,11 +393,12 @@ class MealLogNotifier extends Notifier<MealLogState> {
   Future<void> updateMealLog(MealLog edited) async {
     try {
       final updated = await ref.read(updateMealLogUseCaseProvider)(edited);
+      _mirrorToHealth(() => ref.read(writeMealToHealthUseCaseProvider)(updated));
       final index = state.logs.indexWhere((l) => l.id == updated.id);
       if (index == -1) return;
       state = state.copyWith(logs: [...state.logs]..[index] = updated);
     } catch (err) {
-      state = state.copyWith(error: '$err');
+      state = state.copyWith(error: userMessageFor(err));
     }
   }
 }

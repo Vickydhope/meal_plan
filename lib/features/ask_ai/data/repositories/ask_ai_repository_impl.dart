@@ -1,3 +1,4 @@
+import '../../../../core/error/app_exception.dart';
 import '../../domain/entities/ask_ai_stream_event.dart';
 import '../../domain/entities/chat_message.dart';
 import '../../domain/repositories/ask_ai_repository.dart';
@@ -12,6 +13,7 @@ class AskAiRepositoryImpl implements AskAiRepository {
   Stream<AskAiStreamEvent> ask({
     required String question,
     required List<ChatMessage> history,
+    int? calorieBudgetKcal,
   }) async* {
     try {
       final historyPayload = history
@@ -38,6 +40,13 @@ class AskAiRepositoryImpl implements AskAiRepository {
         history: historyPayload,
         dayStartUtc: dayStart.toUtc().toIso8601String(),
         dayEndUtc: dayEnd.toUtc().toIso8601String(),
+        // Keys the synced `daily_activity` row for "today" server-side.
+        localDate: DateTime.utc(
+          now.year,
+          now.month,
+          now.day,
+        ).toIso8601String().split('T').first,
+        calorieBudgetKcal: calorieBudgetKcal,
       )) {
         switch (raw['_event']) {
           case 'delta':
@@ -49,7 +58,7 @@ class AskAiRepositoryImpl implements AskAiRepository {
         }
       }
     } catch (err) {
-      yield AskAiFailed('Failed to reach the assistant: $err');
+      yield AskAiFailed(userMessageFor(err));
     }
   }
 }

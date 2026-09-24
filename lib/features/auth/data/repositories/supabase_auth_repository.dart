@@ -28,7 +28,7 @@ class SupabaseAuthRepository implements AuthRepository {
     } on AuthApiException catch (err) {
       throw AuthFailureException(_mapAuthError(err));
     } catch (err) {
-      throw AuthFailureException('Sign up failed: $err');
+      throw AuthFailureException('Sign up failed. Try again.');
     }
   }
 
@@ -42,7 +42,7 @@ class SupabaseAuthRepository implements AuthRepository {
     } on AuthApiException catch (err) {
       throw AuthFailureException(_mapAuthError(err));
     } catch (err) {
-      throw AuthFailureException('Sign in failed: $err');
+      throw AuthFailureException('Sign in failed. Try again.');
     }
   }
 
@@ -53,7 +53,7 @@ class SupabaseAuthRepository implements AuthRepository {
     } on AuthApiException catch (err) {
       throw AuthFailureException(_mapAuthError(err));
     } catch (err) {
-      throw AuthFailureException('Sign out failed: $err');
+      throw AuthFailureException('Sign out failed. Try again.');
     }
   }
 

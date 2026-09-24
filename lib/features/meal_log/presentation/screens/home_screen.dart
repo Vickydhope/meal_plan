@@ -10,6 +10,9 @@ import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../../shared/widgets/calorie_overview_card.dart';
 import '../../../../shared/widgets/shimmer_box.dart';
 import '../../../../shared/widgets/week_strip.dart';
+import '../../../fitness/domain/entities/daily_activity.dart';
+import '../../../fitness/presentation/providers/fitness_providers.dart';
+import '../../../profile/domain/entities/calorie_mode.dart';
 import '../../../profile/domain/utils/macro_split.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../domain/entities/meal_log.dart';
@@ -31,6 +34,21 @@ class HomeScreen extends ConsumerWidget {
       }
     });
 
+    // Subscribing also runs the sync (on launch, and again whenever
+    // pull-to-refresh invalidates it).
+    ref.listen(healthWeightSyncProvider, (_, next) {
+      // Only fresh results: loading/error states after a refresh still
+      // carry the previous value, which would repeat the snackbar.
+      if (next case AsyncData(value: final kg?)) {
+        ref.invalidate(currentUserProfileProvider);
+        notifier.refreshProfile();
+        showAppSnackBar(
+          context,
+          'Weight updated from Health: ${kg.toStringAsFixed(1)} kg',
+        );
+      }
+    });
+
     // Past days are read-only: a meal always logs/saves with the real
     // current timestamp (see MealLogRepositoryImpl), so letting someone
     // "add" or edit food while browsing a previous day would be
@@ -42,6 +60,10 @@ class HomeScreen extends ConsumerWidget {
 
     // Used only to size the card's per-macro targets; not a stored target.
     final macroTargets = MacroSplit.fromCalories(state.dailyTarget);
+
+    // Activity is only read for today, so past days keep the plain target.
+    final activity = isToday ? ref.watch(todayActivityProvider).value : null;
+    final todayBudget = isToday ? ref.watch(todayCalorieBudgetProvider) : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -107,7 +129,12 @@ class HomeScreen extends ConsumerWidget {
       body: Padding(
         padding: .symmetric(vertical: 8),
         child: RefreshIndicator(
-          onRefresh: notifier.fetchLogsForSelectedDate,
+          onRefresh: () {
+            ref
+              ..invalidate(todayActivityProvider)
+              ..invalidate(healthWeightSyncProvider);
+            return notifier.fetchLogsForSelectedDate();
+          },
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
@@ -124,7 +151,7 @@ class HomeScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       CalorieOverviewCard(
                         consumed: state.totalCaloriesToday,
-                        target: state.dailyTarget,
+                        target: todayBudget ?? state.dailyTarget,
                         macros: [
                           MacroStat(
                             label: 'Protein',
@@ -149,6 +176,16 @@ class HomeScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
+                      if (activity != null)
+                        _ActivityStats(
+                          activity: activity,
+                          addsToGoal:
+                              ref
+                                  .watch(currentUserProfileProvider)
+                                  .value
+                                  ?.calorieMode ==
+                              CalorieMode.dynamic,
+                        ),
                     ],
                   ),
                 ),
@@ -195,6 +232,48 @@ class HomeScreen extends ConsumerWidget {
 
 bool _isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
+
+/// Steps and active energy from the health store, under the calorie card.
+/// Says whether the burned calories are in the card's goal, since that's
+/// what explains a goal that differs from the Plan screen's number.
+class _ActivityStats extends StatelessWidget {
+  const _ActivityStats({required this.activity, required this.addsToGoal});
+
+  final DailyActivity activity;
+
+  /// True on the activity-based calorie goal (see
+  /// `CalculateActivityAdjustedTargetUseCase`).
+  final bool addsToGoal;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = AppTypography.caption12.copyWith(
+      color: AppColors.textSecondary,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        spacing: 6,
+        children: [
+          const Icon(LucideIcons.footprints, size: 14, color: AppColors.textSecondary),
+          Text('${activity.steps} steps', style: style),
+          const SizedBox(width: 10),
+          const Icon(LucideIcons.flame, size: 14, color: AppColors.textSecondary),
+          Flexible(
+            child: Text(
+              addsToGoal
+                  ? '${activity.activeEnergyBurnedKcal} kcal burned · added to '
+                        "today's goal"
+                  : '${activity.activeEnergyBurnedKcal} kcal burned',
+              style: style,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// The app-bar avatar — matches `ProfileScreen._ProfileAvatar`'s
 /// placeholder/real-photo logic, just smaller and without the upload

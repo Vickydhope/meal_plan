@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/error/app_exception.dart';
 import '../../../../core/router/app_route.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../fitness/presentation/providers/fitness_providers.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -13,6 +16,9 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final email = ref.watch(authRepositoryProvider).currentUserEmail;
+    final syncEnabled = ref.watch(activitySyncEnabledProvider).value ?? false;
+    final mealWriteBack =
+        ref.watch(mealWriteBackEnabledProvider).value ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -51,6 +57,28 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 20),
+            _SettingsSection(
+              title: 'Activity',
+              children: [
+                _SettingsRow(
+                  icon: Icons.directions_run,
+                  label: 'Sync activity & weight from this device',
+                  trailing: Switch.adaptive(
+                    value: syncEnabled,
+                    onChanged: (value) => _setActivitySync(context, value),
+                  ),
+                ),
+                _SettingsRow(
+                  icon: Icons.restaurant_outlined,
+                  label: 'Save meals to Health',
+                  trailing: Switch.adaptive(
+                    value: mealWriteBack,
+                    onChanged: (value) => _setMealWriteBack(context, value),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
             const _SettingsSection(
               title: 'About',
               children: [
@@ -77,6 +105,38 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _setActivitySync(BuildContext context, bool enabled) async {
+    // Captured up front: the permission sheet can outlive this screen, and
+    // a WidgetRef can't be used once its widget is unmounted.
+    final container = ProviderScope.containerOf(context);
+    final userId = container.read(authRepositoryProvider).currentUserId;
+    if (userId == null) return;
+    try {
+      await container.read(setActivitySyncUseCaseProvider)(
+        enabled,
+        userId: userId,
+      );
+    } catch (err) {
+      if (context.mounted) showAppSnackBar(context, userMessageFor(err));
+    }
+    container
+      ..invalidate(activitySyncEnabledProvider)
+      ..invalidate(todayActivityProvider)
+      ..invalidate(healthWeightSyncProvider);
+  }
+
+  /// Only meals confirmed or edited from now on are saved; existing
+  /// history isn't backfilled.
+  Future<void> _setMealWriteBack(BuildContext context, bool enabled) async {
+    final container = ProviderScope.containerOf(context);
+    try {
+      await container.read(setMealWriteBackUseCaseProvider)(enabled);
+    } catch (err) {
+      if (context.mounted) showAppSnackBar(context, userMessageFor(err));
+    }
+    container.invalidate(mealWriteBackEnabledProvider);
   }
 }
 

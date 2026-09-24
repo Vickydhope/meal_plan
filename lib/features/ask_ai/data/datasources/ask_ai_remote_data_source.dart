@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/config/supabase_config.dart';
+import '../../../../core/error/app_exception.dart';
 
 /// Raw Supabase Edge Function access for `ask-ai`, streamed as Server-Sent
 /// Events. Turning these into domain events is the repository's job.
@@ -21,6 +22,8 @@ class AskAiRemoteDataSource {
     required List<Map<String, String>> history,
     required String dayStartUtc,
     required String dayEndUtc,
+    required String localDate,
+    int? calorieBudgetKcal,
   }) async* {
     final uri = Uri.parse('${SupabaseConfig.url}/functions/v1/ask-ai');
     final token =
@@ -38,12 +41,19 @@ class AskAiRemoteDataSource {
         'history': history,
         'dayStart': dayStartUtc,
         'dayEnd': dayEndUtc,
+        'localDate': localDate,
+        'calorieBudget': ?calorieBudgetKcal,
       });
 
     final response = await http.Client().send(request);
     if (response.statusCode != 200) {
       final body = await response.stream.bytesToString();
-      throw Exception('ask-ai returned ${response.statusCode}: $body');
+      throw AskAiException(
+        edgeFunctionErrorMessage(
+          body,
+          fallback: 'The assistant is unavailable right now. Try again.',
+        ),
+      );
     }
 
     String? currentEvent;

@@ -41,11 +41,9 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - **Expected result:** Only requests with a valid, verified JWT reach Gemini; a single user is capped at 20 analyses/hour regardless of retries or scripting; oversized payloads are rejected before hitting the Gemini API.
 
 ### 1.3 Check database schema/migrations into the repo
-- **Status:** [ ]
+- **Status:** [x] (done as part of 3.6)
 - **Problem:** `profiles`/`meal_logs` schema exists only in the remote Supabase project — no version control, no reproducible dev/staging environment, no rollback path, no PR review for schema changes.
-- **Work:**
-  - Add a `supabase/migrations/` directory with the current schema captured as an initial migration.
-  - Document the migration workflow in `CLAUDE.md`.
+- **Work done:** `supabase/migrations/` now holds a baseline schema migration plus incremental migrations (rate limiting, avatar support, soft delete, storage cleanup); migration workflow documented in CLAUDE.md's "Local Supabase stack" section.
 - **Expected result:** Schema changes are versioned, reviewable, and reproducible from a clean project via `supabase db push`/CLI.
 
 ### 1.4 Fix RLS policy performance (`auth.uid()` re-evaluation)
@@ -72,15 +70,15 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - **Expected result:** Orphaned images are automatically reclaimed; storage cost tracks actual logged meals, not upload attempts.
 
 ### 2.2 Cache signed image URLs client-side
-- **Status:** [ ]
+- **Status:** [x] (2026-09-23)
 - **Problem:** `getSignedImageUrl` is re-requested on every view instead of being cached for its TTL.
-- **Work:** Cache signed URLs (with expiry) in the repository/notifier layer, keyed by storage path.
+- **Work done:** `GetSignedImageUrlUseCase` caches per storage path with a 30s stale buffer before the requested TTL; 3 new unit tests (cache hit, stale re-fetch, per-path isolation).
 - **Expected result:** Fewer redundant Storage API calls per session; lower cost and latency as usage grows.
 
 ### 2.3 Add pagination pattern for historical meal data
-- **Status:** [ ]
+- **Status:** [x] (2026-09-23)
 - **Problem:** No pagination exists anywhere in `MealLogRepository`; fine for single-day views today, but `PlanScreen` will need multi-week/month history.
-- **Work:** Add a paginated fetch method (cursor or offset-based) to `MealLogRepository`/data source ahead of building `PlanScreen`.
+- **Work done:** Added `MealLogRepository.fetchLogsPage({userId, before, limit})` (cursor-based on `created_at`) plus `FetchMealLogsPageUseCase`; backend-only, `PlanScreen` doesn't consume it yet. 2 new unit tests.
 - **Expected result:** Historical/plan views can be built without a full-table fetch per user.
 
 ---
@@ -107,9 +105,9 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - **Expected result:** Crashes and unhandled errors in production are visible and traceable without relying on user reports.
 
 ### 3.4 Add CI pipeline
-- **Status:** [ ]
+- **Status:** [x] (2026-09-23)
 - **Problem:** No `.github/workflows` — `flutter analyze`/`flutter test` aren't gated anywhere; regressions can merge silently.
-- **Work:** Add a GitHub Actions workflow that runs `flutter pub get`, `flutter analyze`, and `flutter test` on every PR/push.
+- **Work done:** `.github/workflows/ci.yml` runs `flutter pub get` → `flutter analyze` → `scripts/check_architecture.sh` → `flutter test` on push/PR to main; also fixed 3 pre-existing test failures so the pipeline starts green.
 - **Expected result:** Analysis/test failures block merges automatically instead of relying on manual runs.
 
 ### 3.5 Expand test coverage beyond domain use cases

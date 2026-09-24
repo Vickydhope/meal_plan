@@ -1,4 +1,5 @@
 import '../../domain/entities/activity_level.dart';
+import '../../domain/entities/calorie_mode.dart';
 import '../../domain/entities/goal.dart';
 import '../../domain/entities/sex.dart';
 import '../../domain/entities/user_profile.dart';
@@ -17,6 +18,7 @@ class UserProfileDto {
     this.activityLevel,
     this.goal,
     this.onboardingCompletedAt,
+    this.calorieMode = CalorieMode.fixed,
   });
 
   factory UserProfileDto.fromMap(Map<String, dynamic> map) {
@@ -41,6 +43,7 @@ class UserProfileDto {
       onboardingCompletedAt: map['onboarding_completed_at'] == null
           ? null
           : DateTime.parse(map['onboarding_completed_at'] as String),
+      calorieMode: CalorieMode.fromDbValue(map['calorie_mode'] as String?),
     );
   }
 
@@ -56,6 +59,7 @@ class UserProfileDto {
   final ActivityLevel? activityLevel;
   final Goal? goal;
   final DateTime? onboardingCompletedAt;
+  final CalorieMode calorieMode;
 
   UserProfile toEntity() => UserProfile(
     username: username,
@@ -70,6 +74,7 @@ class UserProfileDto {
     activityLevel: activityLevel,
     goal: goal,
     onboardingCompletedAt: onboardingCompletedAt,
+    calorieMode: calorieMode,
   );
 
   /// Builds the write payload for `ProfileRemoteDataSource.upsertProfile`.
@@ -98,14 +103,15 @@ class UserProfileDto {
 
   /// Builds a *partial* write payload for `ProfileRemoteDataSource.upsertProfile`
   /// — only [userId] plus whichever of [username]/[fullName]/[phone]/
-  /// [avatarPath] are non-null are included, so an edit to one field never
-  /// overwrites the others with `null`.
+  /// [avatarPath]/[calorieMode] are non-null are included, so an edit to one
+  /// field never overwrites the others with `null`.
   static Map<String, dynamic> toProfileUpdateMap({
     required String userId,
     String? username,
     String? fullName,
     String? phone,
     String? avatarPath,
+    CalorieMode? calorieMode,
   }) {
     return {
       'id': userId,
@@ -113,6 +119,7 @@ class UserProfileDto {
       if (fullName != null) 'full_name': fullName,
       if (phone != null) 'phone': phone,
       if (avatarPath != null) 'avatar_path': avatarPath,
+      if (calorieMode != null) 'calorie_mode': calorieMode.dbValue,
     };
   }
 }

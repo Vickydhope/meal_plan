@@ -1,5 +1,7 @@
 package com.doops.meal_plan
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// FlutterFragmentActivity: Health Connect permission requests use
+// registerForActivityResult, which needs a ComponentActivity.
+class MainActivity : FlutterFragmentActivity()

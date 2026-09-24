@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/error/app_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -10,7 +11,9 @@ import '../../../onboarding/presentation/screens/onboarding/body_metrics_step.da
 import '../../../onboarding/presentation/screens/onboarding/dob_step.dart';
 import '../../../onboarding/presentation/screens/onboarding/goal_step.dart';
 import '../../../onboarding/presentation/screens/onboarding/sex_step.dart';
+import '../../../fitness/presentation/providers/fitness_providers.dart';
 import '../../../profile/domain/entities/activity_level.dart';
+import '../../../profile/domain/entities/calorie_mode.dart';
 import '../../../profile/domain/entities/goal.dart';
 import '../../../profile/domain/entities/sex.dart';
 import '../../../profile/domain/entities/user_profile.dart';
@@ -66,6 +69,10 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
   bool _saving = false;
   String? _error;
 
+  /// Saved on its own (not via the ✓ plan save), right when it's toggled —
+  /// see [_setCalorieMode].
+  CalorieMode _calorieMode = CalorieMode.fixed;
+
   void _initFromProfile(UserProfile? profile) {
     if (_initialized || profile == null) return;
     _initialized = true;
@@ -76,6 +83,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
         : null;
     _activityLevel = profile.activityLevel;
     _goal = profile.goal;
+    _calorieMode = profile.calorieMode;
     _syncSavedSnapshot();
   }
 
@@ -255,10 +263,60 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       _syncSavedSnapshot();
       if (mounted) showAppSnackBar(context, 'Plan updated');
     } catch (err) {
-      setState(() => _error = '$err');
+      setState(() => _error = userMessageFor(err));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Future<void> _setCalorieMode(CalorieMode mode) async {
+    final userId = ref.read(authRepositoryProvider).currentUserId;
+    if (userId == null || mode == _calorieMode) return;
+    final previous = _calorieMode;
+    setState(() {
+      _calorieMode = mode;
+      _error = null;
+    });
+    try {
+      await ref.read(updateProfileUseCaseProvider)(
+        userId: userId,
+        calorieMode: mode,
+      );
+      ref.invalidate(currentUserProfileProvider);
+      if (mounted) {
+        showAppSnackBar(context, switch (mode) {
+          CalorieMode.fixed =>
+            'Your daily goal is now fixed at '
+                '${_preview?.dailyCalorieTarget ?? '—'} kcal.',
+          CalorieMode.dynamic =>
+            'Your daily goal now starts at ${_basePreview?.dailyCalorieTarget ?? '—'} '
+                'kcal and goes up as you burn calories.',
+        });
+      }
+    } catch (err) {
+      if (mounted) {
+        setState(() {
+          _calorieMode = previous;
+          _error = userMessageFor(err);
+        });
+      }
+    }
+  }
+
+  /// The activity-based goal's starting point: the plan at a sedentary
+  /// level, before any burned calories are added.
+  CalorieTargetResult? get _basePreview {
+    if (_sex == null || _dob == null || _bodyMetrics == null || _goal == null) {
+      return null;
+    }
+    return ref.read(calculateCalorieTargetUseCaseProvider)(
+      sex: _sex!,
+      dateOfBirth: _dob!,
+      heightCm: _bodyMetrics!.heightCm,
+      weightKg: _bodyMetrics!.weightKg,
+      activityLevel: ActivityLevel.sedentary,
+      goal: _goal!,
+    );
   }
 
   String _formatDate(DateTime date) =>
@@ -315,7 +373,12 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                 children: [
-                  _PlanSummaryCard(preview: _preview),
+                  _PlanSummaryCard(
+                    preview: _calorieMode == CalorieMode.dynamic
+                        ? _basePreview
+                        : _preview,
+                    mode: _calorieMode,
+                  ),
                   const SizedBox(height: 16),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -379,6 +442,16 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  _CalorieModeSection(
+                    mode: _calorieMode,
+                    onChanged: _setCalorieMode,
+                    fixedGoal: _preview?.dailyCalorieTarget,
+                    baseGoal: _basePreview?.dailyCalorieTarget,
+                    todayBudget: ref.watch(todayCalorieBudgetProvider),
+                    hasActivityToday:
+                        ref.watch(todayActivityProvider).value != null,
+                  ),
                   if (_error != null) ...[
                     const SizedBox(height: 16),
                     Text(
@@ -398,10 +471,76 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
   }
 }
 
+/// Fixed vs activity-based daily calorie goal, with a plain-language line
+/// explaining what the selected option means for today's number.
+class _CalorieModeSection extends StatelessWidget {
+  const _CalorieModeSection({
+    required this.mode,
+    required this.onChanged,
+    required this.fixedGoal,
+    required this.baseGoal,
+    required this.todayBudget,
+    required this.hasActivityToday,
+  });
+
+  final CalorieMode mode;
+  final ValueChanged<CalorieMode> onChanged;
+  final int? fixedGoal;
+  final int? baseGoal;
+  final int? todayBudget;
+  final bool hasActivityToday;
+
+  String get _explanation => switch (mode) {
+    CalorieMode.fixed =>
+      'Your goal stays at ${fixedGoal ?? '—'} kcal every day. It already '
+          "allows for your activity level, so workouts don't change it.",
+    CalorieMode.dynamic when !hasActivityToday =>
+      'Your goal starts at ${baseGoal ?? '—'} kcal and goes up by every '
+          "calorie you burn. We haven't received any activity today, so "
+          "today's goal is your usual ${fixedGoal ?? '—'} kcal. To use "
+          'this, turn on Settings › Sync activity & weight from this device.',
+    CalorieMode.dynamic =>
+      'Your goal starts at ${baseGoal ?? '—'} kcal and goes up by every '
+          'calorie you burn, using your Health app. Today so far: '
+          '${todayBudget ?? '—'} kcal.',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Calorie goal', style: AppTypography.titleMedium),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<CalorieMode>(
+            segments: [
+              for (final value in CalorieMode.values)
+                ButtonSegment(value: value, label: Text(value.label)),
+            ],
+            selected: {mode},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) => onChanged(selection.first),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _explanation,
+          style: AppTypography.bodySmall.copyWith(
+            color: AppColors.textTertiary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _PlanSummaryCard extends StatelessWidget {
-  const _PlanSummaryCard({required this.preview});
+  const _PlanSummaryCard({required this.preview, required this.mode});
 
   final CalorieTargetResult? preview;
+  final CalorieMode mode;
 
   @override
   Widget build(BuildContext context) {
@@ -431,7 +570,13 @@ class _PlanSummaryCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text('Daily calories', style: AppTypography.bodyMedium),
+                Text(
+                  mode == CalorieMode.dynamic
+                      ? 'Daily calories on an inactive day, plus what you burn'
+                      : 'Daily calories',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodyMedium,
+                ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,

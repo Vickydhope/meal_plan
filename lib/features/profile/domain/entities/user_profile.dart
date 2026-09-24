@@ -1,4 +1,5 @@
 import 'activity_level.dart';
+import 'calorie_mode.dart';
 import 'goal.dart';
 import 'sex.dart';
 
@@ -18,6 +19,7 @@ class UserProfile {
     this.activityLevel,
     this.goal,
     this.onboardingCompletedAt,
+    this.calorieMode = CalorieMode.fixed,
   });
 
   final String? username;
@@ -35,6 +37,7 @@ class UserProfile {
   final ActivityLevel? activityLevel;
   final Goal? goal;
   final DateTime? onboardingCompletedAt;
+  final CalorieMode calorieMode;
 
   bool get hasCompletedOnboarding => onboardingCompletedAt != null;
 }

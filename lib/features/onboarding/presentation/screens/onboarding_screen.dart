@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/error/app_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../profile/domain/entities/activity_level.dart';
@@ -128,7 +129,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       // reactively swap this screen for `AppShell`.
       ref.invalidate(currentUserProfileProvider);
     } catch (err) {
-      setState(() => _error = '$err');
+      setState(() => _error = userMessageFor(err));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
