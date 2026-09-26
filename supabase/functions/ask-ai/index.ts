@@ -45,7 +45,32 @@ const SYSTEM_PROMPT =
   "macros, or what to eat next!\"";
 
 const RETRYABLE_STATUSES = new Set([429, 503]);
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS = 3;
+// Caps the wait for Gemini's response headers per attempt; cleared once
+// they arrive, so it never cuts off a stream that's already flowing.
+const ATTEMPT_TIMEOUT_MS = 20_000;
+
+// Caps the silence between chunks of an already-started Gemini stream, so a
+// stall mid-response fails fast instead of holding the request open until
+// the edge runtime's wall-clock limit kills it.
+const STREAM_STALL_TIMEOUT_MS = 15_000;
+
+async function readWithStallTimeout(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const stalled = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reader.cancel().catch(() => {});
+      reject(new Error("The AI service stopped responding. Try again."));
+    }, STREAM_STALL_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([reader.read(), stalled]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -79,15 +104,20 @@ async function callGeminiStream(
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     let res: Response | undefined;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
     try {
       res = await fetch(`${GEMINI_URL}?alt=sse&key=${GEMINI_API_KEY}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
     } catch (err) {
       lastDetail = `${err}`;
       res = undefined;
+    } finally {
+      clearTimeout(timer);
     }
 
     if (res?.ok && res.body) return res.body;
@@ -97,6 +127,9 @@ async function callGeminiStream(
       (res === undefined || RETRYABLE_STATUSES.has(res.status))
     ) {
       if (res) lastDetail = await res.text();
+      console.warn(
+        `Gemini attempt ${attempt} failed (${res?.status ?? "no response"}), retrying: ${lastDetail.slice(0, 200)}`,
+      );
       await new Promise((resolve) =>
         setTimeout(resolve, 1000 * 2 ** (attempt - 1)),
       );
@@ -327,7 +360,7 @@ Deno.serve(async (req: Request) => {
         const decoder = new TextDecoder();
 
         while (true) {
-          const { done, value } = await reader.read();
+          const { done, value } = await readWithStallTimeout(reader);
           if (done) break;
 
           sseLineBuffer += decoder.decode(value, { stream: true });
@@ -363,7 +396,9 @@ Deno.serve(async (req: Request) => {
         }
       } catch (err) {
         console.error("Streaming ask-ai failed:", err);
-        emit("error", { message: `${err}` });
+        emit("error", {
+          message: err instanceof Error ? err.message : `${err}`,
+        });
       } finally {
         controller.close();
       }
