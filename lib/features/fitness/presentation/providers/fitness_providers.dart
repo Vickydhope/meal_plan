@@ -91,7 +91,11 @@ final activitySyncEnabledProvider = FutureProvider<bool>(
 final todayActivityProvider = FutureProvider<DailyActivity?>((ref) async {
   final userId = ref.watch(authRepositoryProvider).currentUserId;
   if (userId == null) return null;
-  return ref.watch(getTodayActivityUseCaseProvider)(userId);
+  final profile = await ref.watch(currentUserProfileProvider.future);
+  return ref.watch(getTodayActivityUseCaseProvider)(
+    userId,
+    weightKg: profile?.weightKg,
+  );
 });
 
 /// Today's calorie budget, as `HomeScreen`, `PlanScreen` and Ask AI present

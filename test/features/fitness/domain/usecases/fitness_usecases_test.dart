@@ -147,6 +147,32 @@ void main() {
 
       expect(await getToday('user-1'), activity);
     });
+
+    test(
+      'estimates active energy from steps when the store has none',
+      () async {
+        when(() => repository.isSyncEnabled()).thenAnswer((_) async => true);
+        when(() => repository.getActivityForDay(now)).thenAnswer(
+          (_) async => DailyActivity(
+            date: DateTime(2026, 9, 24),
+            steps: 1648,
+            activeEnergyBurnedKcal: 0,
+          ),
+        );
+        when(() => log.saveActivity(any(), any())).thenAnswer((_) async {});
+
+        final result = await getToday('user-1', weightKg: 80);
+
+        // 1648 steps x 80 kg x 0.00045 kcal/step/kg ≈ 59 kcal.
+        expect(result!.activeEnergyBurnedKcal, 59);
+        final saved =
+            verify(() => log.saveActivity('user-1', captureAny()))
+                    .captured
+                    .single
+                as DailyActivity;
+        expect(saved.activeEnergyBurnedKcal, 59);
+      },
+    );
   });
 
   group('CalculateActivityAdjustedTargetUseCase', () {

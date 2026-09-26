@@ -19,12 +19,30 @@ class GetTodayActivityUseCase {
   final ActivityLogRepository _activityLog;
   final DateTime Function() _now;
 
-  Future<DailyActivity?> call(String userId) async {
+  /// Net walking cost above resting, in kcal per step per kg of body weight
+  /// (~0.03 kcal/step at 70 kg).
+  static const _kcalPerStepPerKg = 0.00045;
+  static const _defaultWeightKg = 70.0;
+
+  /// [weightKg] scales the steps-based estimate used when the health store
+  /// records steps but no active energy (common on phones without a watch).
+  Future<DailyActivity?> call(String userId, {double? weightKg}) async {
     final today = _now();
     if (!await _fitness.isSyncEnabled()) {
       return _activityLog.fetchActivity(userId, today);
     }
-    final activity = await _fitness.getActivityForDay(today);
+    var activity = await _fitness.getActivityForDay(today);
+    if (activity.activeEnergyBurnedKcal == 0 && activity.steps > 0) {
+      activity = DailyActivity(
+        date: activity.date,
+        steps: activity.steps,
+        activeEnergyBurnedKcal:
+            (activity.steps *
+                    (weightKg ?? _defaultWeightKg) *
+                    _kcalPerStepPerKg)
+                .round(),
+      );
+    }
     try {
       await _activityLog.saveActivity(userId, activity);
     } on AppException {
