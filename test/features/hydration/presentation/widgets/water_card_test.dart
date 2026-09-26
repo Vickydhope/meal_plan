@@ -59,7 +59,7 @@ void main() {
             waterRepositoryProvider.overrideWithValue(water),
             fitnessRepositoryProvider.overrideWithValue(fitness),
           ],
-          child: MaterialApp(
+          child: _app(
             home: Scaffold(
               body: WaterCard(day: DateTime(2026, 9, 28), editable: true),
             ),
@@ -76,6 +76,25 @@ void main() {
       await tester.tap(add);
       await tester.pumpAndSettle();
       expect(find.text('1000 / 2500 ml'), findsOneWidget);
+      // The bar's fill is visible (not collapsed to 0 px) and 1000/2500 wide.
+      final fill = tester.getSize(
+        find
+            .descendant(
+              of: find.byType(FractionallySizedBox),
+              matching: find.byType(CustomPaint),
+            )
+            .first,
+      );
+      final track = tester.getSize(
+        find
+            .ancestor(
+              of: find.byType(FractionallySizedBox),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      expect(fill.height, greaterThan(0));
+      expect(fill.width, closeTo(track.width * 1000 / 2500, 0.5));
 
       // The first save is in flight; the rest wait behind it.
       expect(water.saved, [750]);
@@ -104,7 +123,7 @@ void main() {
               _SlowWaterRepository(stored),
             ),
           ],
-          child: MaterialApp(
+          child: _app(
             home: Scaffold(
               body: WaterCard(day: DateTime(2026, 9, 20), editable: false),
             ),
@@ -122,3 +141,12 @@ void main() {
     expect(find.byTooltip('Add a glass (250 ml)'), findsNothing);
   });
 }
+
+/// Reduce motion on: these tests cover saving and visibility, and the
+/// glass's looping wave would otherwise never let pumpAndSettle settle.
+Widget _app({required Widget home}) => MaterialApp(
+  home: MediaQuery(
+    data: const MediaQueryData(disableAnimations: true),
+    child: home,
+  ),
+);

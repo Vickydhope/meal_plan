@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
@@ -36,11 +37,44 @@ class WaterCard extends ConsumerStatefulWidget {
   ConsumerState<WaterCard> createState() => _WaterCardState();
 }
 
-class _WaterCardState extends ConsumerState<WaterCard> {
+class _WaterCardState extends ConsumerState<WaterCard>
+    with TickerProviderStateMixin {
+  /// Replayed per tap to bounce the glass. A controller rather than a keyed
+  /// tween, so the glass (and its fill animation) isn't rebuilt each tap.
+  late final _bounce = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 450),
+    value: 1,
+  );
+
+  /// One wave cycle, shared by the glass and the bar so they move together.
+  late final _wave = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 2),
+  );
+
+  /// Runs the wave whenever there's water to show and motion is allowed,
+  /// so an empty card (or reduce motion) costs no frames.
+  void _syncWave(double fraction, bool still) {
+    final moving = !still && fraction > 0;
+    if (moving && !_wave.isAnimating) {
+      _wave.repeat();
+    } else if (!moving && _wave.isAnimating) {
+      _wave.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _bounce.dispose();
+    _wave.dispose();
+    super.dispose();
+  }
+
   /// The total after this visit's taps; `null` shows the stored total.
   int? _local;
 
-  /// Bumped per tap to replay the icon bounce.
+  /// Tap count, used to give each floating label a distinct id.
   int _taps = 0;
 
   /// In-flight "+250 ml" labels; ids keep each one's animation distinct.
@@ -59,10 +93,16 @@ class _WaterCardState extends ConsumerState<WaterCard> {
     setState(() {
       _local = ((_local ?? stored) + deltaMl).clamp(0, _maxMl);
       _taps++;
-      _bubbles.add((
-        id: _taps,
-        text: '${deltaMl > 0 ? '+' : '−'}${deltaMl.abs()} ml',
-      ));
+      // No bounce or floating label under reduce motion: they're pure
+      // motion, and a zero-length label would remove itself during the
+      // build adding it.
+      if (!MediaQuery.of(context).disableAnimations) {
+        _bounce.forward(from: 0);
+        _bubbles.add((
+          id: _taps,
+          text: '${deltaMl > 0 ? '+' : '−'}${deltaMl.abs()} ml',
+        ));
+      }
     });
 
     _saving = _saving.then((_) async {
@@ -98,6 +138,7 @@ class _WaterCardState extends ConsumerState<WaterCard> {
     // A past day with nothing logged has nothing to show or do. Also hidden
     // while loading, so it never flashes in and back out.
     if (!widget.editable && ml == 0) return const SizedBox.shrink();
+    _syncWave(ml / _goalMl, still);
 
     return Container(
       // The gap lives here, not in the parent, so a hidden card leaves none.
@@ -109,26 +150,20 @@ class _WaterCardState extends ConsumerState<WaterCard> {
       ),
       child: Row(
         children: [
-          // Bounces on every tap: a new key restarts the tween.
-          TweenAnimationBuilder<double>(
-            key: ValueKey(_taps),
-            tween: Tween(begin: _taps == 0 ? 1 : 1.25, end: 1),
-            duration: ms(450),
-            curve: Curves.elasticOut,
-            builder: (context, scale, child) =>
-                Transform.scale(scale: scale, child: child),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.water.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                LucideIcons.glass_water,
-                size: 20,
-                color: AppColors.water,
-              ),
+          ScaleTransition(
+            scale: _bounce.drive(
+              Tween<double>(
+                begin: 1.25,
+                end: 1,
+              ).chain(CurveTween(curve: Curves.elasticOut)),
+            ),
+            // The circle fills to the day's progress, rising after each tap.
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: (ml / _goalMl).clamp(0, 1)),
+              duration: ms(600),
+              curve: Curves.easeOutCubic,
+              builder: (context, fraction, _) =>
+                  _GlassFill(fraction: fraction, wave: _wave),
             ),
           ),
           const SizedBox(width: 12),
@@ -173,7 +208,7 @@ class _WaterCardState extends ConsumerState<WaterCard> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  _FillBar(fraction: value / _goalMl),
+                  _FillBar(fraction: value / _goalMl, wave: _wave),
                 ],
               ),
             ),
@@ -195,7 +230,9 @@ class _WaterCardState extends ConsumerState<WaterCard> {
               children: [
                 IconButton.filled(
                   tooltip: 'Add a glass ($_glassMl ml)',
-                  style: IconButton.styleFrom(backgroundColor: AppColors.primary),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
                   icon: const Icon(LucideIcons.plus, size: 18),
                   onPressed: stored == null
                       ? null
@@ -217,11 +254,83 @@ class _WaterCardState extends ConsumerState<WaterCard> {
   }
 }
 
-/// A rounded bar filled to [fraction] (clamped) with a water gradient.
-class _FillBar extends StatelessWidget {
-  const _FillBar({required this.fraction});
+/// The glass icon on a circle filled from the bottom to [fraction], with a
+/// moving wave on the water line (driven by [wave]).
+class _GlassFill extends StatelessWidget {
+  const _GlassFill({required this.fraction, required this.wave});
 
   final double fraction;
+  final Animation<double> wave;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipOval(
+      child: SizedBox.square(
+        dimension: 40,
+        child: CustomPaint(
+          painter: _GlassPainter(fraction: fraction, wave: wave),
+          child: const Icon(
+            LucideIcons.glass_water,
+            size: 20,
+            color: AppColors.water,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassPainter extends CustomPainter {
+  _GlassPainter({required this.fraction, required this.wave})
+    : super(repaint: wave);
+
+  final double fraction;
+
+  /// 0..1 through one wave cycle.
+  final Animation<double> wave;
+
+  static const _amplitude = 2.0;
+
+  /// A full glass fills to just below the rim, so its wave stays visible.
+  static const _maxFill = 0.9;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = AppColors.water.withValues(alpha: 0.12),
+    );
+    if (fraction <= 0) return;
+
+    final level = size.height * (1 - fraction * _maxFill);
+    final shift = wave.value * 2 * math.pi;
+    final path = Path()..moveTo(0, size.height);
+    for (var x = 0.0; x <= size.width; x++) {
+      path.lineTo(
+        x,
+        level + _amplitude * math.sin(x / size.width * 2 * math.pi + shift),
+      );
+    }
+    path
+      ..lineTo(size.width, size.height)
+      ..close();
+    canvas.drawPath(
+      path,
+      Paint()..color = AppColors.water.withValues(alpha: 0.32),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GlassPainter old) => old.fraction != fraction;
+}
+
+/// A thin rounded bar filled to [fraction] (clamped) with a water gradient,
+/// whose surface ripples and leading edge sways with [wave].
+class _FillBar extends StatelessWidget {
+  const _FillBar({required this.fraction, required this.wave});
+
+  final double fraction;
+  final Animation<double> wave;
 
   @override
   Widget build(BuildContext context) {
@@ -232,22 +341,67 @@ class _FillBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(3),
       ),
       alignment: Alignment.centerLeft,
+      // heightFactor: the aligned parent loosens constraints, and the fill
+      // would otherwise collapse to 0 px tall.
       child: FractionallySizedBox(
         widthFactor: fraction.clamp(0, 1),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(3),
-            gradient: LinearGradient(
-              colors: [
-                AppColors.water.withValues(alpha: 0.55),
-                AppColors.water,
-              ],
-            ),
-          ),
+        heightFactor: 1,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: CustomPaint(painter: _BarPainter(wave: wave)),
         ),
       ),
     );
   }
+}
+
+class _BarPainter extends CustomPainter {
+  _BarPainter({required this.wave}) : super(repaint: wave);
+
+  /// 0..1 through one wave cycle.
+  final Animation<double> wave;
+
+  /// Pixels per ripple along the bar.
+  static const _wavelength = 24.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0) return;
+    final shift = wave.value * 2 * math.pi;
+    // Kept small: the bar is only a few px tall.
+    final amp = size.height * 0.2;
+    // The leading edge sways back and forth within the fill's width.
+    final edgeSway = math.min(2.0, size.width / 2);
+
+    final path = Path()..moveTo(0, size.height);
+    // Surface: a ripple travelling toward the leading edge.
+    final surfaceEnd = size.width - edgeSway;
+    for (var x = 0.0; x <= surfaceEnd; x++) {
+      path.lineTo(
+        x,
+        amp + amp * math.sin(x / _wavelength * 2 * math.pi - shift),
+      );
+    }
+    // Leading edge, top to bottom.
+    for (var y = 0.0; y <= size.height; y += 0.5) {
+      path.lineTo(
+        surfaceEnd + edgeSway * math.sin(y / size.height * math.pi + shift),
+        y,
+      );
+    }
+    path.close();
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = LinearGradient(
+          colors: [AppColors.water.withValues(alpha: 0.55), AppColors.water],
+        ).createShader(Offset.zero & size),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BarPainter old) => false;
 }
 
 /// "+250 ml" that drifts up from the + button and fades, then removes
