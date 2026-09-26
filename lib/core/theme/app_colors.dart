@@ -56,8 +56,9 @@ abstract final class AppColors {
   static const fat = Color(0xFF6FA35A);
   static const fiber = Color(0xFFD1564E);
 
-  // Water intake
-  static const water = Color(0xFF3FA7D6);
+  // Water intake — a muted teal: reads as water without clashing with the
+  // green primary or being mistaken for [protein]'s blue.
+  static const water = Color(0xFF4F8E9B);
 
   // Status
   static const success = Color(0xFF4CAF50);

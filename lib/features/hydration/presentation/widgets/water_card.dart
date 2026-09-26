@@ -28,7 +28,8 @@ class WaterCard extends ConsumerStatefulWidget {
   /// Local midnight of the day shown.
   final DateTime day;
 
-  /// `false` hides the +/− buttons — past days are read-only, like meals.
+  /// `false` hides the +/− buttons — past days are read-only, like meals —
+  /// and hides the whole card when nothing was logged.
   final bool editable;
 
   @override
@@ -94,7 +95,13 @@ class _WaterCardState extends ConsumerState<WaterCard> {
     final still = MediaQuery.of(context).disableAnimations;
     Duration ms(int n) => still ? Duration.zero : Duration(milliseconds: n);
 
+    // A past day with nothing logged has nothing to show or do. Also hidden
+    // while loading, so it never flashes in and back out.
+    if (!widget.editable && ml == 0) return const SizedBox.shrink();
+
     return Container(
+      // The gap lives here, not in the parent, so a hidden card leaves none.
+      margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -188,7 +195,7 @@ class _WaterCardState extends ConsumerState<WaterCard> {
               children: [
                 IconButton.filled(
                   tooltip: 'Add a glass ($_glassMl ml)',
-                  style: IconButton.styleFrom(backgroundColor: AppColors.water),
+                  style: IconButton.styleFrom(backgroundColor: AppColors.primary),
                   icon: const Icon(LucideIcons.plus, size: 18),
                   onPressed: stored == null
                       ? null

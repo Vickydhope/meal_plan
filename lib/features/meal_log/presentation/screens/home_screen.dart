@@ -201,7 +201,6 @@ class HomeScreen extends ConsumerWidget {
                                   ?.calorieMode ==
                               CalorieMode.dynamic,
                         ),
-                      const SizedBox(height: 8),
                       WaterCard(
                         key: ValueKey(selectedDay),
                         day: selectedDay,
