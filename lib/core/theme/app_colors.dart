@@ -56,6 +56,9 @@ abstract final class AppColors {
   static const fat = Color(0xFF6FA35A);
   static const fiber = Color(0xFFD1564E);
 
+  // Water intake
+  static const water = Color(0xFF3FA7D6);
+
   // Status
   static const success = Color(0xFF4CAF50);
   static const warning = Color(0xFFE0973F);

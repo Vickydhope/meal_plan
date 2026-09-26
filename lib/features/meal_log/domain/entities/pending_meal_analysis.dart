@@ -13,7 +13,8 @@ class PendingMealAnalysis {
     required this.mealType,
   });
 
-  final String storagePath;
+  /// `null` only for a re-logged meal whose original had no photo.
+  final String? storagePath;
   final String mealName;
   final int healthScore;
   final List<MealAnalysisItem> items;

@@ -293,12 +293,33 @@ class MealLogNotifier extends Notifier<MealLogState> {
     if (pending == null || userId == null) return;
 
     state = state.copyWith(isProcessing: true, clearError: true);
-
-    try {
-      final newLog = await ref.read(confirmMealLogUseCaseProvider)(
+    final saved = await _saveMeal(
+      () => ref.read(confirmMealLogUseCaseProvider)(
         userId: userId,
         analysis: pending,
-      );
+      ),
+    );
+    state = state.copyWith(
+      isProcessing: false,
+      clearPendingAnalysis: saved != null,
+    );
+  }
+
+  /// Logs a copy of [log] as eaten now (see [RelogMealUseCase]). Returns
+  /// the new log, or `null` on failure ([MealLogState.error] is set).
+  Future<MealLog?> relogMeal(MealLog log) async {
+    final userId = ref.read(authRepositoryProvider).currentUserId;
+    if (userId == null) return null;
+    return _saveMeal(
+      () => ref.read(relogMealUseCaseProvider)(userId: userId, log: log),
+    );
+  }
+
+  /// Runs [save], then does everything a newly logged meal needs: Health
+  /// mirror, notification badge, reminders, and the visible day's list.
+  Future<MealLog?> _saveMeal(Future<MealLog> Function() save) async {
+    try {
+      final newLog = await save();
       _mirrorToHealth(() => ref.read(writeMealToHealthUseCaseProvider)(newLog));
       // The insert trigger just wrote a feed row; refresh the bell badge.
       ref.invalidate(notificationsProvider);
@@ -311,13 +332,11 @@ class MealLogNotifier extends Notifier<MealLogState> {
         newLog.createdAt.toLocal(),
         state.selectedDate,
       );
-      state = state.copyWith(
-        logs: isSelectedDay ? [newLog, ...state.logs] : state.logs,
-        isProcessing: false,
-        clearPendingAnalysis: true,
-      );
+      if (isSelectedDay) state = state.copyWith(logs: [newLog, ...state.logs]);
+      return newLog;
     } catch (err) {
-      state = state.copyWith(isProcessing: false, error: userMessageFor(err));
+      state = state.copyWith(error: userMessageFor(err));
+      return null;
     }
   }
 
@@ -343,7 +362,9 @@ class MealLogNotifier extends Notifier<MealLogState> {
     final pending = state.pendingAnalysis;
     if (pending == null) return;
 
-    await ref.read(discardPendingMealUseCaseProvider)(pending.storagePath);
+    if (pending.storagePath case final path?) {
+      await ref.read(discardPendingMealUseCaseProvider)(path);
+    }
     state = state.copyWith(clearPendingAnalysis: true);
   }
 

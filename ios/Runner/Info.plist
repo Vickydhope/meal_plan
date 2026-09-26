@@ -9,7 +9,7 @@
 	<key>NSHealthShareUsageDescription</key>
 	<string>Reads your steps, active energy and weight to keep your daily calorie budget up to date.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Saves the meals you log (calories, protein, carbs and fat) to Apple Health.</string>
+	<string>Saves the meals you log (calories, protein, carbs and fat) and the water you drink to Apple Health.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Used to select photos of your meals for calorie analysis.</string>
 	<key>CFBundleDevelopmentRegion</key>

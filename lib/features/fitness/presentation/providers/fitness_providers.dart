@@ -7,16 +7,20 @@ import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../data/repositories/activity_log_repository_impl.dart';
 import '../../data/repositories/health_fitness_repository_impl.dart';
+import '../../data/repositories/weight_log_repository_impl.dart';
 import '../../domain/entities/daily_activity.dart';
 import '../../domain/repositories/activity_log_repository.dart';
 import '../../domain/repositories/fitness_repository.dart';
+import '../../domain/repositories/weight_log_repository.dart';
 import '../../domain/usecases/calculate_activity_adjusted_target_usecase.dart';
 import '../../domain/usecases/get_today_activity_usecase.dart';
+import '../../domain/usecases/get_weight_history_usecase.dart';
 import '../../domain/usecases/remove_meal_from_health_usecase.dart';
 import '../../domain/usecases/set_activity_sync_usecase.dart';
 import '../../domain/usecases/set_meal_write_back_usecase.dart';
 import '../../domain/usecases/sync_weight_from_health_usecase.dart';
 import '../../domain/usecases/write_meal_to_health_usecase.dart';
+import '../../domain/usecases/write_water_to_health_usecase.dart';
 
 final fitnessRepositoryProvider = Provider<FitnessRepository>(
   (ref) => HealthFitnessRepositoryImpl(Health(), SharedPreferencesAsync()),
@@ -25,6 +29,28 @@ final fitnessRepositoryProvider = Provider<FitnessRepository>(
 final activityLogRepositoryProvider = Provider<ActivityLogRepository>(
   (ref) => ActivityLogRepositoryImpl(ref.watch(supabaseClientProvider)),
 );
+
+final weightLogRepositoryProvider = Provider<WeightLogRepository>(
+  (ref) => WeightLogRepositoryImpl(ref.watch(supabaseClientProvider)),
+);
+
+final getWeightHistoryUseCaseProvider = Provider(
+  (ref) => GetWeightHistoryUseCase(
+    ref.watch(fitnessRepositoryProvider),
+    ref.watch(weightLogRepositoryProvider),
+  ),
+);
+
+/// Daily weight for the last N days (the family arg), for `TrendsScreen`.
+final weightHistoryProvider = FutureProvider.autoDispose
+    .family<List<({double kg, DateTime measuredAt})>, int>((ref, days) async {
+      final userId = ref.watch(authUserIdProvider).valueOrNull;
+      if (userId == null) return const [];
+      return ref.watch(getWeightHistoryUseCaseProvider)(
+        userId: userId,
+        days: days,
+      );
+    });
 
 final setActivitySyncUseCaseProvider = Provider(
   (ref) => SetActivitySyncUseCase(
@@ -70,6 +96,10 @@ final setMealWriteBackUseCaseProvider = Provider(
 
 final writeMealToHealthUseCaseProvider = Provider(
   (ref) => WriteMealToHealthUseCase(ref.watch(fitnessRepositoryProvider)),
+);
+
+final writeWaterToHealthUseCaseProvider = Provider(
+  (ref) => WriteWaterToHealthUseCase(ref.watch(fitnessRepositoryProvider)),
 );
 
 final removeMealFromHealthUseCaseProvider = Provider(

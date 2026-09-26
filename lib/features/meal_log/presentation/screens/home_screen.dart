@@ -13,6 +13,8 @@ import '../../../../shared/widgets/shimmer_box.dart';
 import '../../../../shared/widgets/week_strip.dart';
 import '../../../fitness/domain/entities/daily_activity.dart';
 import '../../../fitness/presentation/providers/fitness_providers.dart';
+import '../../../hydration/presentation/providers/water_providers.dart';
+import '../../../hydration/presentation/widgets/water_card.dart';
 import '../../../notifications/presentation/providers/notification_providers.dart';
 import '../../../profile/domain/entities/calorie_mode.dart';
 import '../../../profile/domain/utils/macro_split.dart';
@@ -61,10 +63,10 @@ class HomeScreen extends ConsumerWidget {
     // current timestamp (see MealLogRepositoryImpl), so letting someone
     // "add" or edit food while browsing a previous day would be
     // misleading — it wouldn't actually land on that day.
-    final isToday = DateUtils.isSameDay(
+    final selectedDay = DateUtils.dateOnly(
       state.selectedDate ?? DateTime.now(),
-      DateTime.now(),
     );
+    final isToday = DateUtils.isSameDay(selectedDay, DateTime.now());
 
     // Used only to size the card's per-macro targets; not a stored target.
     final macroTargets = MacroSplit.fromCalories(state.dailyTarget);
@@ -98,6 +100,11 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.chart_column, size: 18),
+            tooltip: 'Trends',
+            onPressed: () => context.pushNamed(AppRoute.trends.name),
+          ),
           Stack(
             children: [
               IconButton(
@@ -137,6 +144,7 @@ class HomeScreen extends ConsumerWidget {
         child: RefreshIndicator(
           onRefresh: () {
             ref
+              ..invalidate(waterProvider)
               ..invalidate(todayActivityProvider)
               ..invalidate(healthWeightSyncProvider)
               ..invalidate(notificationsProvider);
@@ -193,6 +201,12 @@ class HomeScreen extends ConsumerWidget {
                                   ?.calorieMode ==
                               CalorieMode.dynamic,
                         ),
+                      const SizedBox(height: 8),
+                      WaterCard(
+                        key: ValueKey(selectedDay),
+                        day: selectedDay,
+                        editable: isToday,
+                      ),
                     ],
                   ),
                 ),
@@ -527,7 +541,9 @@ class _MealItemRow extends ConsumerWidget {
     final imageUrl = log.imageUrl;
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: editable ? () => showEditMealSheet(context, log) : null,
+      onTap: () => editable
+          ? showEditMealSheet(context, log)
+          : _showRelogSheet(context, ref, log),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(
@@ -607,6 +623,53 @@ class _MealItemRow extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Past days are read-only, so tapping one of their meals offers to log it
+/// again today instead of editing it.
+Future<void> _showRelogSheet(BuildContext context, WidgetRef ref, MealLog log) {
+  return showModalBottomSheet(
+    context: context,
+    // Above AppShell's tab bar — see showEditMealSheet.
+    useRootNavigator: true,
+    backgroundColor: AppColors.surface,
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(log.mealName, style: AppTypography.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              '${log.totalCalories} Calories · ${log.mealType.label}',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              icon: const Icon(LucideIcons.repeat, size: 16),
+              label: const Text('Log again today'),
+              onPressed: () async {
+                Navigator.of(sheetContext).pop();
+                final saved = await ref
+                    .read(mealLogProvider.notifier)
+                    .relogMeal(log);
+                if (saved != null && context.mounted) {
+                  showAppSnackBar(
+                    context,
+                    "Added ${log.mealName} to today's ${log.mealType.label.toLowerCase()}",
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _MacroPill extends StatelessWidget {

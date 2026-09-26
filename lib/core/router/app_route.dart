@@ -13,7 +13,8 @@ enum AppRoute {
   scanResult('/scan-result'),
   settings('/settings'),
   notifications('/notifications'),
-  profile('/profile');
+  profile('/profile'),
+  trends('/trends');
 
   const AppRoute(this.path);
 

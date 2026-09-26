@@ -17,8 +17,19 @@ class MealLogRepositoryImpl implements MealLogRepository {
     required DateTime date,
   }) async {
     final start = DateTime(date.year, date.month, date.day);
-    final end = start.add(const Duration(days: 1));
+    return fetchLogsBetween(
+      userId: userId,
+      start: start,
+      end: DateTime(start.year, start.month, start.day + 1),
+    );
+  }
 
+  @override
+  Future<List<MealLog>> fetchLogsBetween({
+    required String userId,
+    required DateTime start,
+    required DateTime end,
+  }) async {
     try {
       final rows = await _dataSource.fetchLogsForRange(
         userId: userId,

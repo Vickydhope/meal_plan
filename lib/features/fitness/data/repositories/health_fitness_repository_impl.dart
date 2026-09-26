@@ -49,12 +49,64 @@ class HealthFitnessRepositoryImpl implements FitnessRepository {
   Future<void> requestMealWritePermissions() async {
     await _ensureStoreInstalled();
     final granted = await _health.requestAuthorization(
-      const [HealthDataType.NUTRITION],
-      permissions: const [HealthDataAccess.WRITE],
+      const [HealthDataType.NUTRITION, HealthDataType.WATER],
+      permissions: const [HealthDataAccess.WRITE, HealthDataAccess.WRITE],
     );
     if (!granted) {
       throw const HealthPermissionDeniedException(
-        'Allow writing nutrition data to save meals to Health.',
+        'Allow writing nutrition and water data to save them to Health.',
+      );
+    }
+  }
+
+  @override
+  Future<void> writeWater(DateTime day, int ml) async {
+    await _ready();
+    final start = DateTime(day.year, day.month, day.day);
+    final end = DateTime(day.year, day.month, day.day + 1);
+    final now = DateTime.now();
+    // One record spanning the day so far; Health Connect needs its end
+    // after its start.
+    final recordEnd = now.isAfter(start) && now.isBefore(end)
+        ? now
+        : end.subtract(const Duration(seconds: 1));
+    try {
+      // Anyone who turned write-back on before water existed never granted
+      // it, so ask here (a no-op sheet-wise once granted).
+      final canWrite = await _health.hasPermissions(
+        const [HealthDataType.WATER],
+        permissions: const [HealthDataAccess.WRITE],
+      );
+      if (canWrite != true &&
+          !await _health.requestAuthorization(
+            const [HealthDataType.WATER],
+            permissions: const [HealthDataAccess.WRITE],
+          )) {
+        throw const HealthPermissionDeniedException(
+          'Allow writing water data to save water to Health.',
+        );
+      }
+      // Both stores only delete this app's own records, so this replaces
+      // our previous total for the day without touching other apps' water.
+      await _health.delete(
+        type: HealthDataType.WATER,
+        startTime: start,
+        endTime: end,
+      );
+      if (ml == 0) return;
+      final ok = await _health.writeHealthData(
+        value: ml / 1000,
+        unit: HealthDataUnit.LITER,
+        type: HealthDataType.WATER,
+        startTime: start,
+        endTime: recordEnd,
+      );
+      if (!ok) throw Exception('write returned false');
+    } on AppException {
+      rethrow;
+    } catch (_) {
+      throw HealthStoreUnavailableException(
+        "Couldn't save water to $_storeName.",
       );
     }
   }
@@ -167,30 +219,40 @@ class HealthFitnessRepositoryImpl implements FitnessRepository {
 
   @override
   Future<({double kg, DateTime measuredAt})?> getLatestWeight() async {
-    await _ready();
     final now = DateTime.now();
+    final weights = await getWeights(
+      start: now.subtract(const Duration(days: 30)),
+      end: now,
+    );
+    return weights.isEmpty
+        ? null
+        : weights.reduce((a, b) => b.measuredAt.isAfter(a.measuredAt) ? b : a);
+  }
+
+  @override
+  Future<List<({double kg, DateTime measuredAt})>> getWeights({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    await _ready();
     final List<HealthDataPoint> points;
     try {
       points = await _health.getHealthDataFromTypes(
         types: const [HealthDataType.WEIGHT],
-        startTime: now.subtract(const Duration(days: 30)),
-        endTime: now,
+        startTime: start,
+        endTime: end,
       );
     } catch (_) {
       throw HealthStoreUnavailableException(
         "Couldn't read weight from $_storeName.",
       );
     }
-    ({double kg, DateTime measuredAt})? latest;
-    for (final point in points) {
-      final value = point.value;
-      if (value is! NumericHealthValue) continue;
-      if (latest == null || point.dateTo.isAfter(latest.measuredAt)) {
-        // WEIGHT is always reported in kilograms by the plugin.
-        latest = (kg: value.numericValue.toDouble(), measuredAt: point.dateTo);
-      }
-    }
-    return latest;
+    return [
+      for (final point in points)
+        if (point.value case NumericHealthValue(:final numericValue))
+          // WEIGHT is always reported in kilograms by the plugin.
+          (kg: numericValue.toDouble(), measuredAt: point.dateTo),
+    ];
   }
 
   @override

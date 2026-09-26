@@ -41,6 +41,7 @@ void main() {
     registerFallbackValue(DateTime(0));
     registerFallbackValue(MealType.UNKNOWN);
     registerFallbackValue(HealthDataType.NUTRITION);
+    registerFallbackValue(HealthDataUnit.LITER);
   });
 
   setUp(() {
@@ -129,6 +130,95 @@ void main() {
     expect(await repository.getLatestWeight(), isNull);
   });
 
+  group('writeWater', () {
+    final day = DateTime(2026, 9, 20);
+
+    setUp(() {
+      when(
+        () => health.hasPermissions(
+          any(),
+          permissions: any(named: 'permissions'),
+        ),
+      ).thenAnswer((_) async => true);
+      when(
+        () => health.delete(
+          type: any(named: 'type'),
+          startTime: any(named: 'startTime'),
+          endTime: any(named: 'endTime'),
+        ),
+      ).thenAnswer((_) async => true);
+      when(
+        () => health.writeHealthData(
+          value: any(named: 'value'),
+          unit: any(named: 'unit'),
+          type: any(named: 'type'),
+          startTime: any(named: 'startTime'),
+          endTime: any(named: 'endTime'),
+        ),
+      ).thenAnswer((_) async => true);
+    });
+
+    test('replaces the day\'s record with the total in litres', () async {
+      await repository.writeWater(day, 750);
+
+      verifyInOrder([
+        () => health.delete(
+          type: HealthDataType.WATER,
+          startTime: DateTime(2026, 9, 20),
+          endTime: DateTime(2026, 9, 21),
+        ),
+        () => health.writeHealthData(
+          value: 0.75,
+          unit: HealthDataUnit.LITER,
+          type: HealthDataType.WATER,
+          startTime: DateTime(2026, 9, 20),
+          endTime: DateTime(2026, 9, 20, 23, 59, 59),
+        ),
+      ]);
+    });
+
+    test('a zero total only removes the record', () async {
+      await repository.writeWater(day, 0);
+
+      verify(
+        () => health.delete(
+          type: HealthDataType.WATER,
+          startTime: any(named: 'startTime'),
+          endTime: any(named: 'endTime'),
+        ),
+      ).called(1);
+      verifyNever(
+        () => health.writeHealthData(
+          value: any(named: 'value'),
+          unit: any(named: 'unit'),
+          type: any(named: 'type'),
+          startTime: any(named: 'startTime'),
+          endTime: any(named: 'endTime'),
+        ),
+      );
+    });
+
+    test('asks for access when missing and fails if denied', () async {
+      when(
+        () => health.hasPermissions(
+          any(),
+          permissions: any(named: 'permissions'),
+        ),
+      ).thenAnswer((_) async => false);
+      when(
+        () => health.requestAuthorization(
+          any(),
+          permissions: any(named: 'permissions'),
+        ),
+      ).thenAnswer((_) async => false);
+
+      await expectLater(
+        repository.writeWater(day, 250),
+        throwsA(isA<HealthPermissionDeniedException>()),
+      );
+    });
+  });
+
   group('meal write-back', () {
     final log = MealLog(
       id: 'log-1',
@@ -187,26 +277,29 @@ void main() {
       );
     });
 
-    test('deleteMeal targets only a ±1s window around the meal record', () async {
-      when(
-        () => health.delete(
-          type: any(named: 'type'),
-          startTime: any(named: 'startTime'),
-          endTime: any(named: 'endTime'),
-        ),
-      ).thenAnswer((_) async => true);
+    test(
+      'deleteMeal targets only a ±1s window around the meal record',
+      () async {
+        when(
+          () => health.delete(
+            type: any(named: 'type'),
+            startTime: any(named: 'startTime'),
+            endTime: any(named: 'endTime'),
+          ),
+        ).thenAnswer((_) async => true);
 
-      await repository.deleteMeal(log.createdAt);
+        await repository.deleteMeal(log.createdAt);
 
-      final at = log.createdAt.toLocal();
-      verify(
-        () => health.delete(
-          type: HealthDataType.NUTRITION,
-          startTime: at.subtract(const Duration(seconds: 1)),
-          endTime: at.add(const Duration(seconds: 2)),
-        ),
-      ).called(1);
-    });
+        final at = log.createdAt.toLocal();
+        verify(
+          () => health.delete(
+            type: HealthDataType.NUTRITION,
+            startTime: at.subtract(const Duration(seconds: 1)),
+            endTime: at.add(const Duration(seconds: 2)),
+          ),
+        ).called(1);
+      },
+    );
   });
 
   test('sync is off until the user opts in', () async {

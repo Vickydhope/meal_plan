@@ -9,6 +9,13 @@ abstract class MealLogRepository {
     required DateTime date,
   });
 
+  /// Meal logs for [userId] created in `[start, end)`, newest first.
+  Future<List<MealLog>> fetchLogsBetween({
+    required String userId,
+    required DateTime start,
+    required DateTime end,
+  });
+
   /// A page of [userId]'s meal logs, newest first, for multi-day/historical
   /// views (e.g. `PlanScreen`'s eventual history list) where fetching the
   /// full table per user isn't practical.

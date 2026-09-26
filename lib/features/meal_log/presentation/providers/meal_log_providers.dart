@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/core_providers.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../data/datasources/food_analysis_remote_data_source.dart';
 import '../../data/datasources/image_remote_data_source.dart';
 import '../../data/datasources/meal_log_remote_data_source.dart';
@@ -16,7 +17,9 @@ import '../../domain/usecases/delete_meal_log_usecase.dart';
 import '../../domain/usecases/discard_pending_meal_usecase.dart';
 import '../../domain/usecases/fetch_meal_logs_page_usecase.dart';
 import '../../domain/usecases/fetch_meal_logs_usecase.dart';
+import '../../domain/usecases/get_daily_nutrition_usecase.dart';
 import '../../domain/usecases/get_signed_image_url_usecase.dart';
+import '../../domain/usecases/relog_meal_usecase.dart';
 import '../../domain/usecases/restore_meal_log_usecase.dart';
 import '../../domain/usecases/update_meal_log_usecase.dart';
 import '../notifiers/meal_log_notifier.dart';
@@ -73,6 +76,10 @@ final confirmMealLogUseCaseProvider = Provider(
   (ref) => ConfirmMealLogUseCase(ref.watch(mealLogRepositoryProvider)),
 );
 
+final relogMealUseCaseProvider = Provider(
+  (ref) => RelogMealUseCase(ref.watch(mealLogRepositoryProvider)),
+);
+
 final deleteMealLogUseCaseProvider = Provider(
   (ref) => DeleteMealLogUseCase(ref.watch(mealLogRepositoryProvider)),
 );
@@ -98,3 +105,18 @@ final getSignedImageUrlUseCaseProvider = Provider(
 final mealLogProvider = NotifierProvider<MealLogNotifier, MealLogState>(
   MealLogNotifier.new,
 );
+
+final getDailyNutritionUseCaseProvider = Provider(
+  (ref) => GetDailyNutritionUseCase(ref.watch(mealLogRepositoryProvider)),
+);
+
+/// Per-day totals for the last N days (the family arg), for `TrendsScreen`.
+final dailyNutritionProvider = FutureProvider.autoDispose
+    .family<List<DailyNutrition>, int>((ref, days) async {
+      final userId = ref.watch(authUserIdProvider).valueOrNull;
+      if (userId == null) return const [];
+      return ref.watch(getDailyNutritionUseCaseProvider)(
+        userId: userId,
+        days: days,
+      );
+    });

@@ -11,6 +11,7 @@ import '../../features/meal_log/presentation/screens/camera_scan_screen.dart';
 import '../../features/meal_log/presentation/screens/home_screen.dart';
 import '../../features/meal_log/presentation/screens/plan_screen.dart';
 import '../../features/meal_log/presentation/screens/scan_result_screen.dart';
+import '../../features/meal_log/presentation/screens/trends_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../../features/profile/presentation/providers/profile_providers.dart';
@@ -157,6 +158,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoute.profile.name,
         path: AppRoute.profile.path,
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        name: AppRoute.trends.name,
+        path: AppRoute.trends.path,
+        builder: (context, state) => const TrendsScreen(),
       ),
     ],
   );

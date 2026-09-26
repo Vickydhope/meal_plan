@@ -17,11 +17,18 @@ abstract class FitnessRepository {
   /// Connect's default read window), or `null` if there is none.
   Future<({double kg, DateTime measuredAt})?> getLatestWeight();
 
+  /// Every body-weight reading taken in `[start, end]`, in no particular
+  /// order. Health Connect only returns the last 30 days by default.
+  Future<List<({double kg, DateTime measuredAt})>> getWeights({
+    required DateTime start,
+    required DateTime end,
+  });
+
   Future<bool> isSyncEnabled();
 
   Future<void> setSyncEnabled(bool enabled);
 
-  /// Asks the OS for write access to nutrition data; throws like
+  /// Asks the OS for write access to nutrition and water data; throws like
   /// [requestPermissions].
   Future<void> requestMealWritePermissions();
 
@@ -34,4 +41,8 @@ abstract class FitnessRepository {
 
   /// Removes the meal record this app wrote at [loggedAt], if any.
   Future<void> deleteMeal(DateTime loggedAt);
+
+  /// Replaces this app's water record for [day]'s local calendar date with
+  /// one holding [ml] (none when 0). Asks for write access if it's missing.
+  Future<void> writeWater(DateTime day, int ml);
 }

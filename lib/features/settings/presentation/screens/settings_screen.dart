@@ -72,7 +72,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 _SettingsRow(
                   icon: Icons.restaurant_outlined,
-                  label: 'Save meals to Health',
+                  label: 'Save meals & water to Health',
                   trailing: Switch.adaptive(
                     value: mealWriteBack,
                     onChanged: (value) => _setMealWriteBack(context, value),
