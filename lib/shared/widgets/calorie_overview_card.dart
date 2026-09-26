@@ -163,7 +163,7 @@ class _CalorieProgressRing extends StatelessWidget {
   Widget build(BuildContext context) {
     final safeTarget = target <= 0 ? 1 : target;
     final progress = (consumed / safeTarget).clamp(0.0, 1.0);
-    final percent = (progress * 100).round();
+    final remaining = target - consumed;
 
     return AspectRatio(
       aspectRatio: 1,
@@ -196,10 +196,6 @@ class _CalorieProgressRing extends StatelessWidget {
                     '$consumed',
                     style: AppTypography.statValue,
                   ),
-                  Text(
-                    'kcal',
-                    style: AppTypography.caption10,
-                  ),
                   const SizedBox(height: 4),
                   Text(
                     'of $target kcal',
@@ -208,9 +204,11 @@ class _CalorieProgressRing extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '$percent%',
+                    remaining >= 0 ? '$remaining left' : '${-remaining} over',
                     style: AppTypography.caption12Bold.copyWith(
-                      color: AppColors.primary,
+                      color: remaining >= 0
+                          ? AppColors.primary
+                          : AppColors.error,
                     ),
                   ),
                 ],
