@@ -1,4 +1,3 @@
-import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemNavigator;
 import 'package:flutter_lucide/flutter_lucide.dart';
@@ -28,6 +27,14 @@ class AppShell extends ConsumerWidget {
 
   final StatefulNavigationShell navigationShell;
 
+  /// One per shell branch, in branch order. Plan uses a target: a
+  /// calorie/nutrition plan is fundamentally a personal target.
+  static const _tabIcons = [
+    LucideIcons.house,
+    LucideIcons.message_circle_more,
+    LucideIcons.target,
+  ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // The camera FAB always logs against "now", not whichever day is
@@ -38,12 +45,9 @@ class AppShell extends ConsumerWidget {
     final selectedDate = ref.watch(
       mealLogProvider.select((state) => state.selectedDate),
     );
-    final now = DateTime.now();
     final isToday =
         selectedDate == null ||
-        (selectedDate.year == now.year &&
-            selectedDate.month == now.month &&
-            selectedDate.day == now.day);
+        DateUtils.isSameDay(selectedDate, DateTime.now());
 
     // The camera FAB is only meaningful on the Home tab — it always logs
     // against "now" (see MealLogRepositoryImpl), which doesn't map onto
@@ -67,15 +71,7 @@ class AppShell extends ConsumerWidget {
       },
       child: Scaffold(
         extendBody: true,
-        // Slides between tabs (direction follows index order) instead of an
-        // instant swap. Keying by branch index (not swapping
-        // navigationShell itself) lets each branch's Navigator — preserved
-        // via GlobalKey internally — keep its own stack/scroll position
-        // across the transition.
-        body: _AnimatedBranchSwitcher(
-          index: navigationShell.currentIndex,
-          child: navigationShell,
-        ),
+        body: navigationShell,
         floatingActionButton: showFab
             ? FloatingActionButton(
                 heroTag: cameraFabHeroTag,
@@ -115,24 +111,12 @@ class AppShell extends ConsumerWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _NavIcon(
-                    icon: LucideIcons.house,
-                    selected: navigationShell.currentIndex == 0,
-                    onTap: () => _goBranch(0),
-                  ),
-                  _NavIcon(
-                    icon: LucideIcons.message_circle_more,
-                    selected: navigationShell.currentIndex == 1,
-                    onTap: () => _goBranch(1),
-                  ),
-                  _NavIcon(
-                    // A calorie/nutrition plan is fundamentally a personal
-                    // target — more meaningful here than a generic book
-                    // icon.
-                    icon: LucideIcons.target,
-                    selected: navigationShell.currentIndex == 2,
-                    onTap: () => _goBranch(2),
-                  ),
+                  for (final (i, icon) in _tabIcons.indexed)
+                    _NavIcon(
+                      icon: icon,
+                      selected: navigationShell.currentIndex == i,
+                      onTap: () => _goBranch(i),
+                    ),
                 ],
               ),
             ),
@@ -238,47 +222,52 @@ class _NavIcon extends StatelessWidget {
   }
 }
 
-/// Slides [child] in horizontally, direction following whether [index] rose
-/// or fell since the last build (e.g. tab 0 -> 1 slides in from the right,
-/// 1 -> 0 slides in from the left) — matching how a horizontally-ordered
-/// tab bar is expected to move.
-class _AnimatedBranchSwitcher extends StatefulWidget {
-  const _AnimatedBranchSwitcher({required this.index, required this.child});
+/// Mounts every branch [Navigator] exactly once (they carry GlobalKeys, so
+/// a switcher holding two copies of the shell mid-transition throws
+/// "Duplicate GlobalKey") and slides/fades between them, direction
+/// following tab order: branches left of [currentIndex] sit off to the
+/// left, those right of it off to the right.
+class AnimatedBranchContainer extends StatelessWidget {
+  const AnimatedBranchContainer({
+    super.key,
+    required this.currentIndex,
+    required this.children,
+  });
 
-  final int index;
-  final Widget child;
+  final int currentIndex;
+  final List<Widget> children;
 
-  @override
-  State<_AnimatedBranchSwitcher> createState() =>
-      _AnimatedBranchSwitcherState();
-}
-
-class _AnimatedBranchSwitcherState extends State<_AnimatedBranchSwitcher> {
-  bool _reverse = false;
-
-  @override
-  void didUpdateWidget(covariant _AnimatedBranchSwitcher oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.index != widget.index) {
-      _reverse = widget.index < oldWidget.index;
-    }
-  }
+  static const _duration = Duration(milliseconds: 220);
 
   @override
   Widget build(BuildContext context) {
-    return PageTransitionSwitcher(
-      duration: const Duration(milliseconds: 220),
-      reverse: _reverse,
-      transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
-        return SharedAxisTransition(
-          animation: primaryAnimation,
-          secondaryAnimation: secondaryAnimation,
-          transitionType: SharedAxisTransitionType.horizontal,
-          fillColor: Colors.transparent,
-          child: child,
-        );
-      },
-      child: KeyedSubtree(key: ValueKey(widget.index), child: widget.child),
+    return Stack(
+      children: [
+        for (var i = 0; i < children.length; i++) _branch(i, children[i]),
+      ],
+    );
+  }
+
+  Widget _branch(int i, Widget child) {
+    final active = i == currentIndex;
+    // TickerMode sits inside the fade/slide: wrapping them would freeze the
+    // outgoing branch's own fade-out, leaving it painted over the new one.
+    return IgnorePointer(
+      ignoring: !active,
+      child: ExcludeSemantics(
+        excluding: !active,
+        child: AnimatedSlide(
+          duration: _duration,
+          curve: Curves.easeInOut,
+          offset: Offset(active ? 0 : (i < currentIndex ? -0.08 : 0.08), 0),
+          child: AnimatedOpacity(
+            duration: _duration,
+            curve: Curves.easeInOut,
+            opacity: active ? 1 : 0,
+            child: TickerMode(enabled: active, child: child),
+          ),
+        ),
+      ),
     );
   }
 }
