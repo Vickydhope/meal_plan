@@ -11,7 +11,7 @@ class ProfileRemoteDataSource {
         .select(
           'username, full_name, phone, avatar_path, daily_calorie_target, '
           'sex, date_of_birth, height_cm, weight_kg, activity_level, goal, '
-          'onboarding_completed_at',
+          'onboarding_completed_at, calorie_mode',
         )
         .eq('id', userId)
         .maybeSingle();
