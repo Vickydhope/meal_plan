@@ -168,7 +168,7 @@ void main() {
         () => health.writeMeal(
           mealType: MealType.LUNCH,
           startTime: at,
-          endTime: at,
+          endTime: at.add(const Duration(seconds: 1)),
           name: 'Chicken Bowl',
           caloriesConsumed: 520,
           protein: 42,
@@ -187,7 +187,7 @@ void main() {
       );
     });
 
-    test('deleteMeal targets only a ±1s window around the meal', () async {
+    test('deleteMeal targets only a ±1s window around the meal record', () async {
       when(
         () => health.delete(
           type: any(named: 'type'),
@@ -203,7 +203,7 @@ void main() {
         () => health.delete(
           type: HealthDataType.NUTRITION,
           startTime: at.subtract(const Duration(seconds: 1)),
-          endTime: at.add(const Duration(seconds: 1)),
+          endTime: at.add(const Duration(seconds: 2)),
         ),
       ).called(1);
     });

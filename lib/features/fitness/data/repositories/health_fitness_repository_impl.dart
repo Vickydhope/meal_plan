@@ -18,6 +18,7 @@ class HealthFitnessRepositoryImpl implements FitnessRepository {
 
   static const _syncEnabledKey = 'fitness.sync_enabled';
   static const _mealWriteBackKey = 'fitness.meal_write_back';
+  static const _mealDuration = Duration(seconds: 1);
   static const _types = [
     HealthDataType.STEPS,
     HealthDataType.ACTIVE_ENERGY_BURNED,
@@ -70,7 +71,9 @@ class HealthFitnessRepositoryImpl implements FitnessRepository {
         app.MealType.snack => MealType.SNACK,
       },
       startTime: at,
-      endTime: at,
+      // Health Connect rejects a NutritionRecord whose end isn't after its
+      // start, so give the meal a nominal duration.
+      endTime: at.add(_mealDuration),
       name: log.mealName,
       caloriesConsumed: log.totalCalories.toDouble(),
       protein: log.totalProtein.toDouble(),
@@ -107,7 +110,7 @@ class HealthFitnessRepositoryImpl implements FitnessRepository {
       await _health.delete(
         type: type,
         startTime: at.subtract(const Duration(seconds: 1)),
-        endTime: at.add(const Duration(seconds: 1)),
+        endTime: at.add(_mealDuration + const Duration(seconds: 1)),
       );
     }
   }
