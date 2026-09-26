@@ -106,9 +106,27 @@ class _BodyMetricsStepState extends State<BodyMetricsStep> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              Text('FEET', style: AppTypography.label),
-              Text('INCHES', style: AppTypography.label),
-              Text('WEIGHT', style: AppTypography.label),
+              Expanded(
+                child: Text(
+                  'FEET',
+                  style: AppTypography.label,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'INCHES',
+                  style: AppTypography.label,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'WEIGHT',
+                  style: AppTypography.label,
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ],
           ),
         ),
