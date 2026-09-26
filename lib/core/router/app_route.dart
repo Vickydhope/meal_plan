@@ -10,6 +10,7 @@ enum AppRoute {
   askAi('/ask-ai'),
   plan('/plan'),
   cameraScan('/camera-scan'),
+  barcodeScan('/barcode-scan'),
   scanResult('/scan-result'),
   settings('/settings'),
   notifications('/notifications'),

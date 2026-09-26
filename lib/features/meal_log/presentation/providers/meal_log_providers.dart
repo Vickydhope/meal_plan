@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 
 import '../../../../core/providers/core_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
@@ -8,9 +9,11 @@ import '../../data/datasources/meal_log_remote_data_source.dart';
 import '../../data/repositories/food_analysis_repository_impl.dart';
 import '../../data/repositories/image_repository_impl.dart';
 import '../../data/repositories/meal_log_repository_impl.dart';
+import '../../data/repositories/open_food_facts_product_repository.dart';
 import '../../domain/repositories/food_analysis_repository.dart';
 import '../../domain/repositories/image_repository.dart';
 import '../../domain/repositories/meal_log_repository.dart';
+import '../../domain/repositories/product_repository.dart';
 import '../../domain/usecases/analyze_meal_photo_usecase.dart';
 import '../../domain/usecases/confirm_meal_log_usecase.dart';
 import '../../domain/usecases/delete_meal_log_usecase.dart';
@@ -19,6 +22,7 @@ import '../../domain/usecases/fetch_meal_logs_page_usecase.dart';
 import '../../domain/usecases/fetch_meal_logs_usecase.dart';
 import '../../domain/usecases/get_daily_nutrition_usecase.dart';
 import '../../domain/usecases/get_signed_image_url_usecase.dart';
+import '../../domain/usecases/look_up_barcode_usecase.dart';
 import '../../domain/usecases/relog_meal_usecase.dart';
 import '../../domain/usecases/restore_meal_log_usecase.dart';
 import '../../domain/usecases/update_meal_log_usecase.dart';
@@ -55,7 +59,17 @@ final foodAnalysisRepositoryProvider = Provider<FoodAnalysisRepository>(
   ),
 );
 
+final productRepositoryProvider = Provider<ProductRepository>((ref) {
+  final client = http.Client();
+  ref.onDispose(client.close);
+  return OpenFoodFactsProductRepository(client);
+});
+
 // --- Use cases ---
+
+final lookUpBarcodeUseCaseProvider = Provider(
+  (ref) => LookUpBarcodeUseCase(ref.watch(productRepositoryProvider)),
+);
 
 final analyzeMealPhotoUseCaseProvider = Provider(
   (ref) => AnalyzeMealPhotoUseCase(

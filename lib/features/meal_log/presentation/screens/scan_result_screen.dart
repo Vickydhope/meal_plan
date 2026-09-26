@@ -17,8 +17,18 @@ import 'camera_scan/phase.dart';
 
 /// Arguments for [ScanResultScreen], carried through go_router's `extra`.
 class ScanResultArgs {
-  const ScanResultArgs({this.imagePath, this.description, this.mealType})
-    : assert((imagePath == null) != (description == null));
+  const ScanResultArgs({
+    this.imagePath,
+    this.description,
+    this.barcode,
+    this.mealType,
+  }) : assert(
+         (imagePath != null ? 1 : 0) +
+                 (description != null ? 1 : 0) +
+                 (barcode != null ? 1 : 0) ==
+             1,
+         'Exactly one of imagePath, description or barcode',
+       );
 
   /// Local file path of the photo confirmed on [CameraScanScreen].
   final String? imagePath;
@@ -26,13 +36,17 @@ class ScanResultArgs {
   /// A typed description of the meal, analyzed instead of a photo.
   final String? description;
 
+  /// A scanned packaged-food barcode, looked up instead of analyzed.
+  final String? barcode;
+
   /// Overrides the time-of-day default meal type, forwarded from
   /// [CameraScanScreen.initialMealType].
   final MealType? mealType;
 }
 
 /// Analysis + review screen: starts analyzing [ScanResultArgs.imagePath]
-/// (or [ScanResultArgs.description]) as soon as it's shown, streams in ingredients, and lets the user edit and
+/// (or looking up [ScanResultArgs.description]/[ScanResultArgs.barcode]) as
+/// soon as it's shown, streams in ingredients, and lets the user edit and
 /// confirm the result as a meal log. The captured photo arrives via
 /// [capturedPhotoHeroTag] from [CameraScanScreen] as a full-bleed parallax
 /// header image (a [SliverAppBar.flexibleSpace], not the corner-bracketed
@@ -68,11 +82,15 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
 
   void _analyze() {
     final notifier = ref.read(mealLogProvider.notifier);
-    final ScanResultArgs(:imagePath, :description, :mealType) = widget.args;
-    if (imagePath != null) {
-      notifier.analyzeCapturedPhoto(imagePath, mealType: mealType);
-    } else {
-      notifier.analyzeDescription(description!, mealType: mealType);
+    switch (widget.args) {
+      case ScanResultArgs(:final imagePath?, :final mealType):
+        notifier.analyzeCapturedPhoto(imagePath, mealType: mealType);
+      case ScanResultArgs(:final barcode?, :final mealType):
+        notifier.analyzeBarcode(barcode, mealType: mealType);
+      case ScanResultArgs(:final description?, :final mealType):
+        notifier.analyzeDescription(description, mealType: mealType);
+      case _:
+        break;
     }
   }
 
@@ -217,7 +235,16 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                       sliver: SliverToBoxAdapter(
-                        child: _DescriptionQuote(widget.args.description!),
+                        child: switch (widget.args.barcode) {
+                          final code? => _SourceNote(
+                            icon: LucideIcons.scan_barcode,
+                            text: 'Barcode $code',
+                          ),
+                          null => _SourceNote(
+                            icon: LucideIcons.quote,
+                            text: widget.args.description!,
+                          ),
+                        },
                       ),
                     ),
                   ],
@@ -342,10 +369,12 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
   }
 }
 
-/// The user's typed description, shown where the photo would be.
-class _DescriptionQuote extends StatelessWidget {
-  const _DescriptionQuote(this.text);
+/// What the meal came from (a typed description or a scanned barcode),
+/// shown where the photo would be.
+class _SourceNote extends StatelessWidget {
+  const _SourceNote({required this.icon, required this.text});
 
+  final IconData icon;
   final String text;
 
   @override
@@ -359,11 +388,7 @@ class _DescriptionQuote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            LucideIcons.quote,
-            size: 16,
-            color: AppColors.textTertiary,
-          ),
+          Icon(icon, size: 16, color: AppColors.textTertiary),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

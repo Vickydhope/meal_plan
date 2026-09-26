@@ -7,6 +7,7 @@ import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/signup_screen.dart';
 import '../../features/meal_log/domain/entities/meal_type.dart';
+import '../../features/meal_log/presentation/screens/barcode_scan_screen.dart';
 import '../../features/meal_log/presentation/screens/camera_scan_screen.dart';
 import '../../features/meal_log/presentation/screens/home_screen.dart';
 import '../../features/meal_log/presentation/screens/plan_screen.dart';
@@ -137,6 +138,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoute.cameraScan.path,
         builder: (context, state) =>
             CameraScanScreen(initialMealType: state.extra as MealType?),
+      ),
+      GoRoute(
+        name: AppRoute.barcodeScan.name,
+        path: AppRoute.barcodeScan.path,
+        builder: (context, state) => const BarcodeScanScreen(),
       ),
       GoRoute(
         name: AppRoute.scanResult.name,

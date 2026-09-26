@@ -88,7 +88,11 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
       enableAudio: false,
     );
     await controller.initialize();
-    if (!mounted) return;
+    if (!mounted) {
+      // The screen closed while the camera was starting; don't leak it.
+      await controller.dispose().catchError((_) {});
+      return;
+    }
     setState(() {
       _cameraIndex = index;
       _controller = controller;
@@ -150,6 +154,32 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
     setState(() => _capturedPath = picked.path);
   }
 
+  /// Logs a packaged food by its barcode instead of a photo.
+  Future<void> _scanBarcode() async {
+    // Release the camera first: the scanner opens its own, and two open
+    // sessions can fail or leave a blank preview on Android.
+    final controller = _controller;
+    setState(() => _controller = null);
+    await controller?.dispose().catchError((_) {});
+    if (!mounted) return;
+
+    final barcode = await context.pushNamed<String>(AppRoute.barcodeScan.name);
+    if (!mounted) return;
+    if (barcode != null) {
+      final saved = await _review(
+        ScanResultArgs(barcode: barcode, mealType: widget.initialMealType),
+      );
+      if (saved || !mounted) return;
+    }
+    // Reopen only once this screen is showing again: a camera opened behind
+    // the review screen comes back with a blank preview on Android. (The
+    // scanner has already released its camera before popping.)
+    // Block body: an arrow would return the Future, which setState rejects.
+    setState(() {
+      _initFuture = _openCamera(_cameraIndex);
+    });
+  }
+
   /// Logs a meal from a typed description instead of a photo.
   Future<void> _describe() async {
     final description = await showModalBottomSheet<String>(
@@ -179,20 +209,23 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
     );
   }
 
-  Future<void> _review(ScanResultArgs args) async {
+  /// Opens the review screen for [args]. Returns true if the meal was saved,
+  /// in which case this screen has closed too.
+  Future<bool> _review(ScanResultArgs args) async {
     final confirmed = await context.pushNamed<bool>(
       AppRoute.scanResult.name,
       extra: args,
     );
-    if (!mounted) return;
+    if (!mounted) return confirmed == true;
     if (confirmed == true) {
       // Meal was saved on the scan-result screen — leave the camera too.
       context.pop();
-    } else {
-      // User backed out (or the scan-result screen discarded the photo) —
-      // return to a live viewfinder.
-      setState(() => _capturedPath = null);
+      return true;
     }
+    // User backed out (or the scan-result screen discarded the photo) —
+    // return to a live viewfinder.
+    setState(() => _capturedPath = null);
+    return false;
   }
 
   @override
@@ -314,15 +347,32 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
             ),
             Align(
               alignment: Alignment.centerRight,
-              child: IconButton(
-                tooltip: 'Describe your meal',
-                padding: const EdgeInsets.all(14),
-                icon: const Icon(
-                  LucideIcons.keyboard,
-                  color: AppColors.textPrimary,
-                  size: 26,
-                ),
-                onPressed: _capturing ? null : _describe,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Scan a barcode',
+                    padding: const EdgeInsets.all(14),
+                    icon: const Icon(
+                      LucideIcons.scan_barcode,
+                      color: AppColors.textPrimary,
+                      size: 26,
+                    ),
+                    onPressed: _capturing || _cameras.isEmpty
+                        ? null
+                        : _scanBarcode,
+                  ),
+                  IconButton(
+                    tooltip: 'Describe your meal',
+                    padding: const EdgeInsets.all(14),
+                    icon: const Icon(
+                      LucideIcons.keyboard,
+                      color: AppColors.textPrimary,
+                      size: 26,
+                    ),
+                    onPressed: _capturing ? null : _describe,
+                  ),
+                ],
               ),
             ),
           ],

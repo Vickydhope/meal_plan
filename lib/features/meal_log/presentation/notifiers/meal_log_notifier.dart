@@ -131,6 +131,18 @@ class MealLogNotifier extends Notifier<MealLogState> {
     );
   }
 
+  /// Like [analyzeCapturedPhoto], for a scanned packaged-food barcode — the
+  /// product's nutrition facts come from a lookup, not image analysis.
+  Future<void> analyzeBarcode(String barcode, {MealType? mealType}) {
+    return _analyze(
+      () => ref.read(lookUpBarcodeUseCaseProvider)(
+        barcode: barcode,
+        mealType: mealType,
+      ),
+      awaitsUpload: false,
+    );
+  }
+
   /// Runs one analysis stream, staging its progress in state. With
   /// [awaitsUpload], the result can't be reviewed until the photo's
   /// [UploadCompleted] arrives (see [stopAnalyzing]).
