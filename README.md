@@ -19,6 +19,25 @@
 
 Whether you're cutting, bulking, or just trying to eat a little more mindfully, Cravia removes the friction so tracking actually sticks.
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/app_mockup.jpeg" alt="Cravia app mockup" width="800">
+</p>
+
+<p align="center">
+  <img src="screenshots/cravia_home.jpg" alt="Home dashboard" width="200">
+  <img src="screenshots/cravia_scan.jpg" alt="Scan a meal" width="200">
+  <img src="screenshots/cravia_result.jpg" alt="Scan result" width="200">
+  <img src="screenshots/cravia_chat.jpg" alt="Ask AI chat" width="200">
+</p>
+
+<p align="center">
+  <img src="screenshots/cravia_plan.jpg" alt="Plan" width="200">
+  <img src="screenshots/cravia_notification.jpg" alt="Notifications" width="200">
+  <img src="screenshots/cravia_settings.jpg" alt="Settings" width="200">
+</p>
+
 ## Tech stack
 
 - **Flutter** (Dart) — cross-platform mobile client, Android/iOS build flavors (dev/prod).
