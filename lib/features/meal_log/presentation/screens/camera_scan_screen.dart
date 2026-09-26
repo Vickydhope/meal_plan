@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/router/app_route.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -139,6 +140,15 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
     }
   }
 
+  Future<void> _pickFromGallery() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 90,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _capturedPath = picked.path);
+  }
+
   void _retake() {
     setState(() => _capturedPath = null);
   }
@@ -254,11 +264,27 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
   Widget _bottomBar(CapturePhase phase) {
     switch (phase) {
       case CapturePhase.idle:
-        return Center(
-          child: Hero(
-            tag: cameraFabHeroTag,
-            child: ShutterButton(capturing: _capturing, onTap: _capture),
-          ),
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            Hero(
+              tag: cameraFabHeroTag,
+              child: ShutterButton(capturing: _capturing, onTap: _capture),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                tooltip: 'Choose from gallery',
+                padding: const EdgeInsets.all(14),
+                icon: const Icon(
+                  LucideIcons.image_plus,
+                  color: AppColors.textPrimary,
+                  size: 26,
+                ),
+                onPressed: _capturing ? null : _pickFromGallery,
+              ),
+            ),
+          ],
         );
       case CapturePhase.captured:
         return SizedBox(
