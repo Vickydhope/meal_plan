@@ -12,6 +12,16 @@ import '../../../../core/error/app_exception.dart';
 class AskAiRemoteDataSource {
   AskAiRemoteDataSource(this._client);
 
+  /// Longer than the edge function's worst case before it starts streaming
+  /// (3 Gemini attempts x 20s plus backoff).
+  static const _responseTimeout = Duration(seconds: 75);
+
+  /// Longer than the edge function's own 15s mid-stream stall cutoff.
+  static const _chunkTimeout = Duration(seconds: 20);
+
+  static const _timeoutMessage =
+      'The assistant is taking too long to respond. Try again.';
+
   final SupabaseClient _client;
 
   /// Streams decoded SSE payloads from the `ask-ai` function. Each yielded
@@ -45,35 +55,44 @@ class AskAiRemoteDataSource {
         'calorieBudget': ?calorieBudgetKcal,
       });
 
-    final response = await http.Client().send(request);
-    if (response.statusCode != 200) {
-      final body = await response.stream.bytesToString();
-      throw AskAiException(
-        edgeFunctionErrorMessage(
-          body,
-          fallback: 'The assistant is unavailable right now. Try again.',
-        ),
-      );
-    }
-
-    String? currentEvent;
-    final lines = response.stream
-        .transform(utf8.decoder)
-        .transform(const LineSplitter());
-
-    await for (final line in lines) {
-      if (line.isEmpty) {
-        currentEvent = null;
-        continue;
+    final httpClient = http.Client();
+    try {
+      final response = await httpClient.send(request).timeout(_responseTimeout);
+      if (response.statusCode != 200) {
+        final body = await response.stream.bytesToString();
+        throw AskAiException(
+          edgeFunctionErrorMessage(
+            body,
+            fallback: 'The assistant is unavailable right now. Try again.',
+          ),
+        );
       }
-      if (line.startsWith('event:')) {
-        currentEvent = line.substring(6).trim();
-      } else if (line.startsWith('data:')) {
-        final payload = line.substring(5).trim();
-        if (payload.isEmpty) continue;
-        final decoded = jsonDecode(payload) as Map<String, dynamic>;
-        yield {'_event': currentEvent ?? 'message', ...decoded};
+
+      String? currentEvent;
+      final lines = response.stream
+          .timeout(_chunkTimeout)
+          .transform(utf8.decoder)
+          .transform(const LineSplitter());
+
+      await for (final line in lines) {
+        if (line.isEmpty) {
+          currentEvent = null;
+          continue;
+        }
+        if (line.startsWith('event:')) {
+          currentEvent = line.substring(6).trim();
+        } else if (line.startsWith('data:')) {
+          final payload = line.substring(5).trim();
+          if (payload.isEmpty) continue;
+          final decoded = jsonDecode(payload) as Map<String, dynamic>;
+          yield {'_event': currentEvent ?? 'message', ...decoded};
+        }
       }
+    } on TimeoutException {
+      throw const AskAiException(_timeoutMessage);
+    } finally {
+      // Also runs when the listener cancels early, dropping the connection.
+      httpClient.close();
     }
   }
 }
