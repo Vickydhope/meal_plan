@@ -34,8 +34,12 @@ class NutritionOverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasData = items.isNotEmpty;
-    final calories = items.fold(0.0, (sum, i) => sum + i.adjustedCalories).round();
-    final protein = items.fold(0.0, (sum, i) => sum + i.adjustedProteinG).round();
+    final calories = items
+        .fold(0.0, (sum, i) => sum + i.adjustedCalories)
+        .round();
+    final protein = items
+        .fold(0.0, (sum, i) => sum + i.adjustedProteinG)
+        .round();
     final carbs = items.fold(0.0, (sum, i) => sum + i.adjustedCarbsG).round();
     final fats = items.fold(0.0, (sum, i) => sum + i.adjustedFatsG).round();
 
@@ -55,10 +59,7 @@ class NutritionOverviewCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Nutrition',
-                      style: AppTypography.titleLarge,
-                    ),
+                    Text('Nutrition', style: AppTypography.titleLarge),
                     const SizedBox(height: 2),
                     Text(
                       'Detected from your photo',
@@ -187,14 +188,19 @@ class _MacroRow extends StatelessWidget {
           height: 34,
           width: 34,
           alignment: Alignment.center,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+          ),
           child: Icon(icon, size: 18, color: color),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: Text(
             label,
-            style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         ),
         if (!hasData)
@@ -277,14 +283,8 @@ class _MacroRing extends StatelessWidget {
               key: ValueKey(calories),
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '$calories',
-                  style: AppTypography.statValue,
-                ),
-                Text(
-                  'Calories',
-                  style: AppTypography.caption10,
-                ),
+                Text('$calories', style: AppTypography.statValue),
+                Text('Calories', style: AppTypography.caption10),
               ],
             ),
           ),

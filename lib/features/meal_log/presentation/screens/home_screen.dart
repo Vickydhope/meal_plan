@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -53,7 +54,7 @@ class HomeScreen extends ConsumerWidget {
     // current timestamp (see MealLogRepositoryImpl), so letting someone
     // "add" or edit food while browsing a previous day would be
     // misleading — it wouldn't actually land on that day.
-    final isToday = _isSameDay(
+    final isToday = DateUtils.isSameDay(
       state.selectedDate ?? DateTime.now(),
       DateTime.now(),
     );
@@ -86,10 +87,7 @@ class HomeScreen extends ConsumerWidget {
                 color: AppColors.textSecondary,
               ),
             ),
-            Text(
-              state.username ?? 'Guest!',
-              style: AppTypography.titleLarge,
-            ),
+            Text(state.username ?? 'Guest!', style: AppTypography.titleLarge),
           ],
         ),
         actions: [
@@ -230,9 +228,6 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-bool _isSameDay(DateTime a, DateTime b) =>
-    a.year == b.year && a.month == b.month && a.day == b.day;
-
 /// Steps and active energy from the health store, under the calorie card.
 /// Says whether the burned calories are in the card's goal, since that's
 /// what explains a goal that differs from the Plan screen's number.
@@ -255,10 +250,18 @@ class _ActivityStats extends StatelessWidget {
       child: Row(
         spacing: 6,
         children: [
-          const Icon(LucideIcons.footprints, size: 14, color: AppColors.textSecondary),
+          const Icon(
+            LucideIcons.footprints,
+            size: 14,
+            color: AppColors.textSecondary,
+          ),
           Text('${activity.steps} steps', style: style),
           const SizedBox(width: 10),
-          const Icon(LucideIcons.flame, size: 14, color: AppColors.textSecondary),
+          const Icon(
+            LucideIcons.flame,
+            size: 14,
+            color: AppColors.textSecondary,
+          ),
           Flexible(
             child: Text(
               addsToGoal
@@ -292,7 +295,9 @@ class _HomeAvatar extends ConsumerWidget {
 
     return CircleAvatar(
       backgroundColor: AppColors.surface,
-      backgroundImage: avatarUrl == null ? null : NetworkImage(avatarUrl),
+      backgroundImage: avatarUrl == null
+          ? null
+          : CachedNetworkImageProvider(avatarUrl),
       child: avatarUrl == null
           ? const Icon(LucideIcons.circle_user, color: AppColors.textTertiary)
           : null,
@@ -315,10 +320,7 @@ class _NoMealsForDay extends StatelessWidget {
           color: AppColors.textDisabled,
         ),
         const SizedBox(height: 12),
-        Text(
-          'No meals logged',
-          style: AppTypography.titleMedium,
-        ),
+        Text('No meals logged', style: AppTypography.titleMedium),
         const SizedBox(height: 4),
         Text(
           "You didn't log any food on this day.",
@@ -431,10 +433,7 @@ class _MealSectionCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  title,
-                  style: AppTypography.valueLarge,
-                ),
+                Text(title, style: AppTypography.valueLarge),
                 if (isToday)
                   TextButton.icon(
                     onPressed: onLogFood,
@@ -542,8 +541,11 @@ class _MealItemRow extends ConsumerWidget {
                           if (!snapshot.hasData) {
                             return Container(color: AppColors.surfaceMuted);
                           }
-                          return Image.network(
-                            snapshot.data!,
+                          // Keyed by storage path, not the signed URL,
+                          // so the disk cache survives URL re-signing.
+                          return CachedNetworkImage(
+                            imageUrl: snapshot.data!,
+                            cacheKey: imageUrl,
                             fit: BoxFit.cover,
                           );
                         },

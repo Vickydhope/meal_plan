@@ -15,8 +15,18 @@ sealed class AppException implements Exception {
 
 /// Maps any caught error to text safe to show a user. Repository messages
 /// often embed raw SDK errors (e.g. `'Failed to save meal log: $err'`), so
-/// only subtypes whose messages are known-safe pass through.
-String userMessageFor(Object err) => switch (err) {
+/// only subtypes whose messages are known-safe pass through. The raw error
+/// is printed in debug builds so the detail hidden from the user isn't lost.
+String userMessageFor(Object err) {
+  assert(() {
+    // ignore: avoid_print
+    print('[AppError] ${err.runtimeType}: $err');
+    return true;
+  }());
+  return _userMessageFor(err);
+}
+
+String _userMessageFor(Object err) => switch (err) {
   NotSignedInException(:final message) => message,
   // Built from the edge function's own user-facing `error` text.
   FoodAnalysisException(:final message) => message,

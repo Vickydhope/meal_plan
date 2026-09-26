@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart' show DateUtils;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -36,16 +38,14 @@ class MealLogNotifier extends Notifier<MealLogState> {
     await Future.wait([fetchLogsForSelectedDate(), refreshProfile()]);
   }
 
-  /// Re-fetches the signed-in user's profile and updates
-  /// [MealLogState.username]/[MealLogState.avatarPath]/[MealLogState.dailyTarget]
-  /// — call after something outside this notifier (e.g. `PlanScreen`,
+  /// Syncs [MealLogState.username]/[MealLogState.avatarPath]/[MealLogState.dailyTarget]
+  /// from [currentUserProfileProvider] — call after invalidating that
+  /// provider when something outside this notifier (e.g. `PlanScreen`,
   /// `ProfileScreen`) changes the stored profile, so the home screen
-  /// reflects it without a restart.
+  /// reflects it without a restart. Reads the shared provider rather than
+  /// fetching directly, so the router and this notifier share one request.
   Future<void> refreshProfile() async {
-    final userId = ref.read(authRepositoryProvider).currentUserId;
-    if (userId == null) return;
-
-    final profile = await ref.read(fetchUserProfileUseCaseProvider)(userId);
+    final profile = await ref.read(currentUserProfileProvider.future);
     if (profile == null) return;
 
     state = state.copyWith(
@@ -299,7 +299,14 @@ class MealLogNotifier extends Notifier<MealLogState> {
         analysis: pending,
       );
       _mirrorToHealth(() => ref.read(writeMealToHealthUseCaseProvider)(newLog));
-      final isSelectedDay = _isSameDay(newLog.createdAt, state.selectedDate);
+      // createdAt (a DB row's created_at, parsed as UTC) and selectedDate (a
+      // local-midnight DateTime) must be compared in the same zone — see the
+      // note in MealLogRemoteDataSource.fetchLogsForRange for the same class
+      // of bug.
+      final isSelectedDay = DateUtils.isSameDay(
+        newLog.createdAt.toLocal(),
+        state.selectedDate,
+      );
       state = state.copyWith(
         logs: isSelectedDay ? [newLog, ...state.logs] : state.logs,
         isProcessing: false,
@@ -321,16 +328,6 @@ class MealLogNotifier extends Notifier<MealLogState> {
             Sentry.captureException(err, stackTrace: stack),
       ),
     );
-  }
-
-  bool _isSameDay(DateTime a, DateTime? b) {
-    if (b == null) return false;
-    // [a] (a DB row's created_at, parsed as UTC) and [b] (selectedDate, a
-    // local-midnight DateTime) must be compared in the same zone — see the
-    // note in MealLogRemoteDataSource.fetchLogsForRange for the same class
-    // of bug.
-    final local = a.toLocal();
-    return local.year == b.year && local.month == b.month && local.day == b.day;
   }
 
   /// Discards the pending analysis and removes its uploaded image.
@@ -393,7 +390,9 @@ class MealLogNotifier extends Notifier<MealLogState> {
   Future<void> updateMealLog(MealLog edited) async {
     try {
       final updated = await ref.read(updateMealLogUseCaseProvider)(edited);
-      _mirrorToHealth(() => ref.read(writeMealToHealthUseCaseProvider)(updated));
+      _mirrorToHealth(
+        () => ref.read(writeMealToHealthUseCaseProvider)(updated),
+      );
       final index = state.logs.indexWhere((l) => l.id == updated.id);
       if (index == -1) return;
       state = state.copyWith(logs: [...state.logs]..[index] = updated);

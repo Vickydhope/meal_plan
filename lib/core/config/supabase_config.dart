@@ -22,7 +22,8 @@ class SupabaseConfig {
   static String get _localUrl => 'http://$_localHost:54321';
   // Fixed demo publishable key printed by every `supabase start` run against
   // this project's config.toml — not a secret, safe to commit.
-  static const String _localAnonKey = 'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
+  static const String _localAnonKey =
+      'sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH';
 
   static const String _prodUrl = 'https://rchzdxmmvixeyoiulqsd.supabase.co';
   static const String _prodAnonKey =

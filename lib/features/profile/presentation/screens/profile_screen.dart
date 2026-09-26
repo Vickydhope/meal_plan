@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -305,7 +306,9 @@ class _ProfileAvatar extends ConsumerWidget {
           CircleAvatar(
             radius: 44,
             backgroundColor: AppColors.surfaceMuted,
-            backgroundImage: avatarUrl == null ? null : NetworkImage(avatarUrl),
+            backgroundImage: avatarUrl == null
+                ? null
+                : CachedNetworkImageProvider(avatarUrl),
             child: avatarUrl == null
                 ? const Icon(
                     LucideIcons.circle_user,
@@ -362,10 +365,7 @@ class _ProfileSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            title.toUpperCase(),
-            style: AppTypography.label,
-          ),
+          child: Text(title.toUpperCase(), style: AppTypography.label),
         ),
         Container(
           decoration: BoxDecoration(

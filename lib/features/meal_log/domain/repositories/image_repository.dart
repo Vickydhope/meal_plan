@@ -7,7 +7,10 @@ abstract class ImageRepository {
 
   /// Uploads [bytes] for [userId], returning the storage path it was saved
   /// under.
-  Future<String> uploadImage({required String userId, required Uint8List bytes});
+  Future<String> uploadImage({
+    required String userId,
+    required Uint8List bytes,
+  });
 
   /// A time-limited signed URL for a stored image path.
   Future<String> getSignedUrl(String path, {int expiresInSeconds = 3600});

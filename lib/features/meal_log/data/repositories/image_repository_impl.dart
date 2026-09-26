@@ -28,7 +28,9 @@ class ImageRepositoryImpl implements ImageRepository {
       );
 
       if (result == null) {
-        throw ImageProcessingException('Image compression failed for $imagePath');
+        throw ImageProcessingException(
+          'Image compression failed for $imagePath',
+        );
       }
       if (result.lengthInBytes <= _maxBytes) {
         return result;

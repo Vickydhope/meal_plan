@@ -13,7 +13,7 @@ class _CachedSignedUrl {
 
 class GetSignedImageUrlUseCase {
   GetSignedImageUrlUseCase(this._imageRepository, {DateTime Function()? now})
-      : _now = now ?? DateTime.now;
+    : _now = now ?? DateTime.now;
 
   final ImageRepository _imageRepository;
   final DateTime Function() _now;

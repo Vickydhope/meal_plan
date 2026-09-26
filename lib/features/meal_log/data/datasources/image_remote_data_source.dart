@@ -41,15 +41,25 @@ class ImageRemoteDataSource {
     // (and the crop) reflect how the photo actually looks upright.
     final oriented = img.bakeOrientation(decoded);
 
-    final side = oriented.width < oriented.height ? oriented.width : oriented.height;
+    final side = oriented.width < oriented.height
+        ? oriented.width
+        : oriented.height;
     final x = (oriented.width - side) ~/ 2;
     final y = (oriented.height - side) ~/ 2;
-    final cropped = img.copyCrop(oriented, x: x, y: y, width: side, height: side);
+    final cropped = img.copyCrop(
+      oriented,
+      x: x,
+      y: y,
+      width: side,
+      height: side,
+    );
     return Uint8List.fromList(img.encodeJpg(cropped, quality: 95));
   }
 
   Future<void> upload(String path, Uint8List bytes) {
-    return _client.storage.from(bucket).uploadBinary(
+    return _client.storage
+        .from(bucket)
+        .uploadBinary(
           path,
           bytes,
           fileOptions: const FileOptions(contentType: 'image/jpeg'),

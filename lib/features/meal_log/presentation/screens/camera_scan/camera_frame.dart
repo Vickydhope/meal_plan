@@ -12,7 +12,11 @@ import 'phase.dart';
 /// A classic circular camera shutter button — a white ring with a solid
 /// disc inside, matching the physical shutter on a camera app.
 class ShutterButton extends StatelessWidget {
-  const ShutterButton({super.key, required this.capturing, required this.onTap});
+  const ShutterButton({
+    super.key,
+    required this.capturing,
+    required this.onTap,
+  });
 
   final bool capturing;
   final VoidCallback onTap;
@@ -108,7 +112,9 @@ class PhotoFrame extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Text(
             cameraError!,
-            style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.textSecondary,
+            ),
             textAlign: TextAlign.center,
           ),
         ),
@@ -119,7 +125,8 @@ class PhotoFrame extends StatelessWidget {
       future: initFuture,
       builder: (context, snapshot) {
         final camera = controller;
-        if (snapshot.connectionState != ConnectionState.done || camera == null) {
+        if (snapshot.connectionState != ConnectionState.done ||
+            camera == null) {
           return const Center(child: CircularProgressIndicator());
         }
         return CoverCameraPreview(controller: camera);
@@ -318,7 +325,10 @@ class ScanningRingsState extends State<ScanningRings> {
           const SizedBox(
             height: 28,
             width: 28,
-            child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 16),
           AnimatedSwitcher(

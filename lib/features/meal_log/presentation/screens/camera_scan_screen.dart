@@ -164,7 +164,9 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
   @override
   Widget build(BuildContext context) {
     final capturedPath = _capturedPath;
-    final phase = capturedPath == null ? CapturePhase.idle : CapturePhase.captured;
+    final phase = capturedPath == null
+        ? CapturePhase.idle
+        : CapturePhase.captured;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -195,7 +197,9 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                     color: AppColors.textPrimary,
                     size: 18,
                   ),
-                  onPressed: _capturing || _cameras.length < 2 ? null : _flipCamera,
+                  onPressed: _capturing || _cameras.length < 2
+                      ? null
+                      : _flipCamera,
                 ),
               ]
             : [

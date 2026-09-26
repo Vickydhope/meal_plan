@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -218,10 +219,7 @@ class _EditMealSheetState extends ConsumerState<_EditMealSheet> {
                 ],
               ),
               const SizedBox(height: 16),
-              Text(
-                'Ingredients',
-                style: AppTypography.titleMedium,
-              ),
+              Text('Ingredients', style: AppTypography.titleMedium),
               const SizedBox(height: 10),
               Flexible(
                 child: _items.isEmpty
@@ -351,7 +349,13 @@ class _MealThumbnail extends ConsumerWidget {
                   if (!snapshot.hasData) {
                     return Container(color: AppColors.surfaceMuted);
                   }
-                  return Image.network(snapshot.data!, fit: BoxFit.cover);
+                  // Keyed by storage path, not the signed URL, so the disk
+                  // cache survives URL re-signing.
+                  return CachedNetworkImage(
+                    imageUrl: snapshot.data!,
+                    cacheKey: imageUrl,
+                    fit: BoxFit.cover,
+                  );
                 },
               ),
       ),

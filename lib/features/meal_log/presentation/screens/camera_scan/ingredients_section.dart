@@ -86,10 +86,7 @@ class IngredientsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Detected ingredients',
-          style: AppTypography.titleMedium,
-        ),
+        Text('Detected ingredients', style: AppTypography.titleMedium),
         const SizedBox(height: 10),
         for (final entry in items.asMap().entries) ...[
           FadeSlideIn(
@@ -429,7 +426,9 @@ class AnalyzingNextCard extends StatelessWidget {
                 ),
                 Text(
                   'Identifying category',
-                  style: AppTypography.caption11.copyWith(color: AppColors.textDisabled),
+                  style: AppTypography.caption11.copyWith(
+                    color: AppColors.textDisabled,
+                  ),
                 ),
               ],
             ),

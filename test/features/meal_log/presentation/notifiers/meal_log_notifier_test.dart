@@ -104,6 +104,7 @@ void main() {
         imageRepositoryProvider.overrideWithValue(images),
         foodAnalysisRepositoryProvider.overrideWithValue(analysis),
         profileRepositoryProvider.overrideWithValue(profiles),
+        currentUserProfileProvider.overrideWith((ref) async => null),
         fitnessRepositoryProvider.overrideWithValue(fitness),
       ],
     );

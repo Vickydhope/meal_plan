@@ -20,7 +20,10 @@ class SentryProviderObserver extends ProviderObserver {
     Sentry.captureException(
       error,
       stackTrace: stackTrace,
-      withScope: (scope) => scope.setTag('provider', provider.name ?? provider.runtimeType.toString()),
+      withScope: (scope) => scope.setTag(
+        'provider',
+        provider.name ?? provider.runtimeType.toString(),
+      ),
     );
   }
 }

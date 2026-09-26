@@ -42,14 +42,8 @@ class EmptyPlateMessage extends StatelessWidget {
               spacing: 10,
               runSpacing: 10,
               children: [
-                _FeatureChip(
-                  icon: LucideIcons.zap,
-                  label: 'Instant calories',
-                ),
-                _FeatureChip(
-                  icon: LucideIcons.chart_pie,
-                  label: 'Full macros',
-                ),
+                _FeatureChip(icon: LucideIcons.zap, label: 'Instant calories'),
+                _FeatureChip(icon: LucideIcons.chart_pie, label: 'Full macros'),
                 _FeatureChip(
                   icon: LucideIcons.list_checks,
                   label: 'Ingredient breakdown',
@@ -84,10 +78,7 @@ class _FeatureChip extends StatelessWidget {
         children: [
           Icon(icon, size: 11, color: AppColors.primary),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: AppTypography.caption11Medium,
-          ),
+          Text(label, style: AppTypography.caption11Medium),
         ],
       ),
     );

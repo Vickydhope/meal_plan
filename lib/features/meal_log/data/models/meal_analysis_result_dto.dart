@@ -11,7 +11,9 @@ class MealAnalysisResultDto {
 
   factory MealAnalysisResultDto.fromMap(Map<String, dynamic> map) {
     final items = ((map['items'] as List?) ?? const [])
-        .map((item) => MealAnalysisItemDto.fromMap(item as Map<String, dynamic>))
+        .map(
+          (item) => MealAnalysisItemDto.fromMap(item as Map<String, dynamic>),
+        )
         .toList();
 
     return MealAnalysisResultDto(
@@ -26,8 +28,8 @@ class MealAnalysisResultDto {
   final List<MealAnalysisItemDto> items;
 
   MealAnalysisResult toEntity() => MealAnalysisResult(
-        mealName: mealName,
-        healthScore: healthScore,
-        items: items.map((dto) => dto.toEntity()).toList(),
-      );
+    mealName: mealName,
+    healthScore: healthScore,
+    items: items.map((dto) => dto.toEntity()).toList(),
+  );
 }
