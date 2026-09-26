@@ -29,13 +29,15 @@ class FoodAnalysisRemoteDataSource {
     _httpClient = null;
   }
 
-  /// Streams decoded SSE payloads from the `analyze-food` function. Each
-  /// yielded map is the event's JSON `data:` body, tagged with the SSE
-  /// `event:` name under the `_event` key (`'meal_name' | 'item' | 'done' |
-  /// 'error'`).
+  /// Streams decoded SSE payloads from the `analyze-food` function for a
+  /// photo ([imageBytes] + [mimeType]) or, when [text] is given, a typed
+  /// description of the meal. Each yielded map is the event's JSON `data:`
+  /// body, tagged with the SSE `event:` name under the `_event` key
+  /// (`'meal_name' | 'item' | 'done' | 'error'`).
   Stream<Map<String, dynamic>> streamAnalyzeFood({
-    required Uint8List imageBytes,
-    required String mimeType,
+    Uint8List? imageBytes,
+    String? mimeType,
+    String? text,
   }) async* {
     final uri = Uri.parse('${SupabaseConfig.url}/functions/v1/analyze-food');
     final token =
@@ -48,10 +50,11 @@ class FoodAnalysisRemoteDataSource {
         'apikey': SupabaseConfig.anonKey,
         'Authorization': 'Bearer $token',
       })
-      ..body = jsonEncode({
-        'image': base64Encode(imageBytes),
-        'mimeType': mimeType,
-      });
+      ..body = jsonEncode(
+        text != null
+            ? {'text': text}
+            : {'image': base64Encode(imageBytes!), 'mimeType': mimeType},
+      );
 
     final httpClient = http.Client();
     _httpClient = httpClient;
@@ -62,7 +65,9 @@ class FoodAnalysisRemoteDataSource {
         throw FoodAnalysisException(
           edgeFunctionErrorMessage(
             body,
-            fallback: "Couldn't analyze this photo. Try again.",
+            fallback: text != null
+                ? "Couldn't analyze this meal. Try again."
+                : "Couldn't analyze this photo. Try again.",
           ),
         );
       }

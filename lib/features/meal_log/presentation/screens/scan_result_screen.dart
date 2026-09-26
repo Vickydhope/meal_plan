@@ -17,18 +17,22 @@ import 'camera_scan/phase.dart';
 
 /// Arguments for [ScanResultScreen], carried through go_router's `extra`.
 class ScanResultArgs {
-  const ScanResultArgs({required this.imagePath, this.mealType});
+  const ScanResultArgs({this.imagePath, this.description, this.mealType})
+    : assert((imagePath == null) != (description == null));
 
   /// Local file path of the photo confirmed on [CameraScanScreen].
-  final String imagePath;
+  final String? imagePath;
+
+  /// A typed description of the meal, analyzed instead of a photo.
+  final String? description;
 
   /// Overrides the time-of-day default meal type, forwarded from
   /// [CameraScanScreen.initialMealType].
   final MealType? mealType;
 }
 
-/// Analysis + review screen: starts analyzing [ScanResultArgs.imagePath] as
-/// soon as it's shown, streams in ingredients, and lets the user edit and
+/// Analysis + review screen: starts analyzing [ScanResultArgs.imagePath]
+/// (or [ScanResultArgs.description]) as soon as it's shown, streams in ingredients, and lets the user edit and
 /// confirm the result as a meal log. The captured photo arrives via
 /// [capturedPhotoHeroTag] from [CameraScanScreen] as a full-bleed parallax
 /// header image (a [SliverAppBar.flexibleSpace], not the corner-bracketed
@@ -58,13 +62,18 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_started || !mounted) return;
       _started = true;
-      ref
-          .read(mealLogProvider.notifier)
-          .analyzeCapturedPhoto(
-            widget.args.imagePath,
-            mealType: widget.args.mealType,
-          );
+      _analyze();
     });
+  }
+
+  void _analyze() {
+    final notifier = ref.read(mealLogProvider.notifier);
+    final ScanResultArgs(:imagePath, :description, :mealType) = widget.args;
+    if (imagePath != null) {
+      notifier.analyzeCapturedPhoto(imagePath, mealType: mealType);
+    } else {
+      notifier.analyzeDescription(description!, mealType: mealType);
+    }
   }
 
   /// Discards/cancels whatever the analysis pipeline has in flight, without
@@ -98,14 +107,7 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
     if (mounted) context.pop(true);
   }
 
-  void _retry() {
-    ref
-        .read(mealLogProvider.notifier)
-        .analyzeCapturedPhoto(
-          widget.args.imagePath,
-          mealType: widget.args.mealType,
-        );
-  }
+  void _retry() => _analyze();
 
   @override
   Widget build(BuildContext context) {
@@ -139,57 +141,86 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
             Expanded(
               child: CustomScrollView(
                 slivers: [
-                  SliverAppBar(
-                    pinned: true,
-                    backgroundColor: AppColors.background,
-                    elevation: 0,
-                    // Full-bleed header spans the screen width, so match
-                    // that width to keep the photo at its native 1:1
-                    // aspect ratio.
-                    expandedHeight: MediaQuery.of(context).size.width,
-                    leading: IconButton(
-                      icon: const Icon(
-                        LucideIcons.arrow_left,
-                        color: Colors.white,
-                        size: 18,
+                  if (widget.args.imagePath case final imagePath?)
+                    SliverAppBar(
+                      pinned: true,
+                      backgroundColor: AppColors.background,
+                      elevation: 0,
+                      // Full-bleed header spans the screen width, so match
+                      // that width to keep the photo at its native 1:1
+                      // aspect ratio.
+                      expandedHeight: MediaQuery.of(context).size.width,
+                      leading: IconButton(
+                        icon: const Icon(
+                          LucideIcons.arrow_left,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        onPressed: _leave,
                       ),
-                      onPressed: _leave,
-                    ),
-                    title: mealName == null
-                        ? null
-                        : Text(
-                            mealName,
-                            style: AppTypography.titleValue.copyWith(
-                              color: Colors.white,
+                      title: mealName == null
+                          ? null
+                          : Text(
+                              mealName,
+                              style: AppTypography.titleValue.copyWith(
+                                color: Colors.white,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                    flexibleSpace: FlexibleSpaceBar(
-                      collapseMode: CollapseMode.parallax,
-                      background: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Hero(
-                            tag: capturedPhotoHeroTag,
-                            child: capturedImage(widget.args.imagePath),
-                          ),
-                          // Scrim so the back button/title stay legible
-                          // against whatever the photo looks like.
-                          const DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [Colors.black45, Colors.transparent],
-                                stops: [0, 0.35],
+                      flexibleSpace: FlexibleSpaceBar(
+                        collapseMode: CollapseMode.parallax,
+                        background: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Hero(
+                              tag: capturedPhotoHeroTag,
+                              child: capturedImage(imagePath),
+                            ),
+                            // Scrim so the back button/title stay legible
+                            // against whatever the photo looks like.
+                            const DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [Colors.black45, Colors.transparent],
+                                  stops: [0, 0.35],
+                                ),
                               ),
                             ),
-                          ),
-                          if (showScanningRings) const ScanningRings(),
-                        ],
+                            if (showScanningRings) const ScanningRings(),
+                          ],
+                        ),
+                      ),
+                    )
+                  else ...[
+                    SliverAppBar(
+                      pinned: true,
+                      backgroundColor: AppColors.background,
+                      elevation: 0,
+                      leading: IconButton(
+                        icon: const Icon(LucideIcons.arrow_left, size: 18),
+                        onPressed: _leave,
+                      ),
+                      title: Text(
+                        mealName ?? 'Analyzing…',
+                        style: AppTypography.titleValue,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      bottom: showScanningRings
+                          ? const PreferredSize(
+                              preferredSize: Size.fromHeight(2),
+                              child: LinearProgressIndicator(minHeight: 2),
+                            )
+                          : null,
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                      sliver: SliverToBoxAdapter(
+                        child: _DescriptionQuote(widget.args.description!),
                       ),
                     ),
-                  ),
+                  ],
                   if (state.error != null)
                     SliverToBoxAdapter(
                       child: Padding(
@@ -308,5 +339,42 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
           ),
         );
     }
+  }
+}
+
+/// The user's typed description, shown where the photo would be.
+class _DescriptionQuote extends StatelessWidget {
+  const _DescriptionQuote(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            LucideIcons.quote,
+            size: 16,
+            color: AppColors.textTertiary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

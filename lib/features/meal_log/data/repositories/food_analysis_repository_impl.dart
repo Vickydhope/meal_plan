@@ -16,12 +16,19 @@ class FoodAnalysisRepositoryImpl implements FoodAnalysisRepository {
   Stream<MealAnalysisStreamEvent> analyze({
     required Uint8List imageBytes,
     required String mimeType,
-  }) async* {
+  }) => _toEvents(
+    _dataSource.streamAnalyzeFood(imageBytes: imageBytes, mimeType: mimeType),
+  );
+
+  @override
+  Stream<MealAnalysisStreamEvent> analyzeDescription(String description) =>
+      _toEvents(_dataSource.streamAnalyzeFood(text: description));
+
+  Stream<MealAnalysisStreamEvent> _toEvents(
+    Stream<Map<String, dynamic>> rawEvents,
+  ) async* {
     try {
-      await for (final raw in _dataSource.streamAnalyzeFood(
-        imageBytes: imageBytes,
-        mimeType: mimeType,
-      )) {
+      await for (final raw in rawEvents) {
         switch (raw['_event']) {
           case 'meal_name':
             yield MealNameDetected(raw['name'] as String? ?? '');

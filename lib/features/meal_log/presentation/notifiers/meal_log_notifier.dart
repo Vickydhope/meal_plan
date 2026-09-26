@@ -26,6 +26,10 @@ class MealLogNotifier extends Notifier<MealLogState> {
   StreamSubscription<MealAnalysisStreamEvent>? _analysisSub;
   String? _streamingStoragePath;
 
+  /// True while a photo analysis hasn't uploaded its photo yet, so there's
+  /// nothing reviewable to keep if it's stopped.
+  bool _awaitingUpload = false;
+
   @override
   MealLogState build() {
     final today = DateTime.now();
@@ -106,9 +110,37 @@ class MealLogNotifier extends Notifier<MealLogState> {
       state = state.copyWith(error: const NotSignedInException().message);
       return;
     }
+    await _analyze(
+      () => ref.read(analyzeMealPhotoUseCaseProvider)(
+        userId: userId,
+        imagePath: imagePath,
+        mealType: mealType,
+      ),
+      awaitsUpload: true,
+    );
+  }
 
+  /// Like [analyzeCapturedPhoto], for a typed description of the meal —
+  /// same streaming progress and review, but no photo.
+  Future<void> analyzeDescription(String description, {MealType? mealType}) {
+    return _analyze(
+      () => ref
+          .read(analyzeMealPhotoUseCaseProvider)
+          .fromDescription(description: description, mealType: mealType),
+      awaitsUpload: false,
+    );
+  }
+
+  /// Runs one analysis stream, staging its progress in state. With
+  /// [awaitsUpload], the result can't be reviewed until the photo's
+  /// [UploadCompleted] arrives (see [stopAnalyzing]).
+  Future<void> _analyze(
+    Stream<MealAnalysisStreamEvent> Function() start, {
+    required bool awaitsUpload,
+  }) async {
     await _analysisSub?.cancel();
     _streamingStoragePath = null;
+    _awaitingUpload = awaitsUpload;
     state = state.copyWith(
       isProcessing: true,
       isStreaming: true,
@@ -124,26 +156,20 @@ class MealLogNotifier extends Notifier<MealLogState> {
     await Future.delayed(Duration.zero);
 
     final completer = Completer<void>();
-    _analysisSub = ref
-        .read(analyzeMealPhotoUseCaseProvider)(
-          userId: userId,
-          imagePath: imagePath,
-          mealType: mealType,
-        )
-        .listen(
-          _handleStreamEvent,
-          onError: (Object err) {
-            state = state.copyWith(
-              isProcessing: false,
-              isStreaming: false,
-              error: userMessageFor(err),
-            );
-            if (!completer.isCompleted) completer.complete();
-          },
-          onDone: () {
-            if (!completer.isCompleted) completer.complete();
-          },
+    _analysisSub = start().listen(
+      _handleStreamEvent,
+      onError: (Object err) {
+        state = state.copyWith(
+          isProcessing: false,
+          isStreaming: false,
+          error: userMessageFor(err),
         );
+        if (!completer.isCompleted) completer.complete();
+      },
+      onDone: () {
+        if (!completer.isCompleted) completer.complete();
+      },
+    );
 
     await completer.future;
   }
@@ -152,6 +178,7 @@ class MealLogNotifier extends Notifier<MealLogState> {
     switch (event) {
       case UploadCompleted(:final storagePath):
         _streamingStoragePath = storagePath;
+        _awaitingUpload = false;
       case MealNameDetected(:final mealName):
         state = state.copyWith(streamingMealName: mealName);
       case ItemDetected(:final item):
@@ -189,7 +216,7 @@ class MealLogNotifier extends Notifier<MealLogState> {
     _analysisSub = null;
 
     final storagePath = _streamingStoragePath;
-    if (storagePath == null) {
+    if (_awaitingUpload) {
       // Stopped before the upload even finished, so there's no image to
       // build a PendingMealAnalysis from and nothing to review — surface
       // as an error rather than silently sitting in the "analyzing" phase

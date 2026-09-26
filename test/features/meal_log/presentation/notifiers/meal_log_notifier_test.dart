@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -262,5 +263,32 @@ void main() {
     final state = container.read(mealLogProvider);
     expect(state.logs, [saved]);
     expect(state.error, 'store down');
+  });
+
+  test('stopping a description analysis keeps what was detected, with no '
+      'photo', () async {
+    final events = StreamController<MealAnalysisStreamEvent>();
+    when(() => analysis.analyzeDescription(any()))
+        .thenAnswer((_) => events.stream);
+    // Like the real client: aborting the request ends its stream, which is
+    // what lets cancelling the analysis subscription complete.
+    when(() => analysis.cancelInFlight()).thenAnswer((_) {
+      events.close();
+    });
+    final notifier = container.read(mealLogProvider.notifier);
+
+    unawaited(notifier.analyzeDescription('rice bowl'));
+    await pumpEventQueue();
+    events
+      ..add(const MealNameDetected('Rice Bowl'))
+      ..add(const ItemDetected(_item));
+    await pumpEventQueue();
+    await notifier.stopAnalyzing();
+
+    final state = container.read(mealLogProvider);
+    expect(state.error, isNull);
+    expect(state.pendingAnalysis?.storagePath, isNull);
+    expect(state.pendingAnalysis?.mealName, 'Rice Bowl');
+    expect(state.pendingAnalysis?.items, [_item]);
   });
 }

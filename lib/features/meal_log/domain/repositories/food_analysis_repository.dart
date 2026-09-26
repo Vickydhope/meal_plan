@@ -11,7 +11,11 @@ abstract class FoodAnalysisRepository {
     required String mimeType,
   });
 
-  /// Aborts the in-flight [analyze] request, if any, so a subscription
+  /// Like [analyze], for a typed description of the meal instead of a
+  /// photo.
+  Stream<MealAnalysisStreamEvent> analyzeDescription(String description);
+
+  /// Aborts the in-flight [analyze]/[analyzeDescription] request, if any, so a subscription
   /// cancellation takes effect immediately instead of waiting for the
   /// network call it's suspended on to finish on its own — cancelling a
   /// [Stream] subscription only stops a generator at its next await/yield,

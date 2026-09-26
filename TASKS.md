@@ -36,7 +36,7 @@
 - [x] ~~Stop leaking raw exceptions into UI state~~ (2026-09-24) - `userMessageFor(err)` in `core/error/app_exception.dart` switches over the sealed `AppException` family: passes through messages already safe (`NotSignedIn`, `FoodAnalysis`, `AskAi`, `AuthFailure`), replaces `MealLogPersistence`/`ImageProcessing` (which embed raw SDK text) with fixed copy, and falls back to "Something went wrong" for anything else
   - Used by every `'$err'` site in `MealLogNotifier`, `AskAiNotifier`, `PlanScreen`, `OnboardingScreen`, `ProfileScreen`, and the catch-alls in `FoodAnalysisRepositoryImpl`/`AskAiRepositoryImpl`. `CameraScanScreen`'s local camera errors left as-is
   - `ask-ai` got the same fix as §3.2: new `AskAiException` + shared `edgeFunctionErrorMessage` helper reading the function's `{"error": ...}` body; `SupabaseAuthRepository`'s non-API fallbacks no longer interpolate `$err`
-  - Not covered: `analyze-food`'s server-side `catch` still emits raw `${err}` in its SSE `error` event (needs an edge function redeploy)
+  - ~~Not covered: `analyze-food`'s server-side `catch` still emits raw `${err}` in its SSE `error` event~~ fixed 2026-09-27 (prod v25): only `UserFacingError` messages pass through, anything else gets generic copy
   - `test/core/error/app_exception_test.dart` covers the mapping and body parsing
   - plan.md §3.1
 - [x] ~~Expand test coverage~~ (2026-09-24) - 51 Flutter tests (was 35) + 5 Deno tests

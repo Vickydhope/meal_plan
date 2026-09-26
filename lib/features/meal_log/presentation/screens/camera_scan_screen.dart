@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/router/app_route.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/meal_type.dart';
 import 'camera_scan/camera_frame.dart';
 import 'camera_scan/empty_plate_message.dart';
@@ -149,6 +150,23 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
     setState(() => _capturedPath = picked.path);
   }
 
+  /// Logs a meal from a typed description instead of a photo.
+  Future<void> _describe() async {
+    final description = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      builder: (_) => const _DescribeMealSheet(),
+    );
+    if (description == null || !mounted) return;
+    await _review(
+      ScanResultArgs(
+        description: description,
+        mealType: widget.initialMealType,
+      ),
+    );
+  }
+
   void _retake() {
     setState(() => _capturedPath = null);
   }
@@ -156,9 +174,15 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
   Future<void> _usePhoto() async {
     final path = _capturedPath;
     if (path == null) return;
+    await _review(
+      ScanResultArgs(imagePath: path, mealType: widget.initialMealType),
+    );
+  }
+
+  Future<void> _review(ScanResultArgs args) async {
     final confirmed = await context.pushNamed<bool>(
       AppRoute.scanResult.name,
-      extra: ScanResultArgs(imagePath: path, mealType: widget.initialMealType),
+      extra: args,
     );
     if (!mounted) return;
     if (confirmed == true) {
@@ -284,6 +308,19 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                 onPressed: _capturing ? null : _pickFromGallery,
               ),
             ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                tooltip: 'Describe your meal',
+                padding: const EdgeInsets.all(14),
+                icon: const Icon(
+                  LucideIcons.keyboard,
+                  color: AppColors.textPrimary,
+                  size: 26,
+                ),
+                onPressed: _capturing ? null : _describe,
+              ),
+            ),
           ],
         );
       case CapturePhase.captured:
@@ -302,5 +339,88 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
           ),
         );
     }
+  }
+}
+
+/// Text entry for [_CameraScanScreenState._describe]; pops with the trimmed
+/// description, or nothing if dismissed.
+class _DescribeMealSheet extends StatefulWidget {
+  const _DescribeMealSheet();
+
+  @override
+  State<_DescribeMealSheet> createState() => _DescribeMealSheetState();
+}
+
+class _DescribeMealSheetState extends State<_DescribeMealSheet> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _controller.text.trim();
+    if (text.isNotEmpty) Navigator.of(context).pop(text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      // Keeps the field above the keyboard.
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('What did you eat?', style: AppTypography.titleMedium),
+              const SizedBox(height: 4),
+              Text(
+                'Include amounts if you know them.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _controller,
+                autofocus: true,
+                minLines: 2,
+                maxLines: 4,
+                // Matches the edge function's MAX_TEXT_CHARS.
+                maxLength: 500,
+                textCapitalization: TextCapitalization.sentences,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _submit(),
+                decoration: const InputDecoration(
+                  hintText: 'e.g. 2 scrambled eggs, toast with butter, coffee',
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListenableBuilder(
+                listenable: _controller,
+                builder: (context, _) => FilledButton(
+                  onPressed: _controller.text.trim().isEmpty ? null : _submit,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                  child: const Text('Analyze'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

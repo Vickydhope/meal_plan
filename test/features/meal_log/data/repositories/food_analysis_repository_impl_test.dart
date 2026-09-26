@@ -77,4 +77,16 @@ void main() {
       isNot(contains('SocketException')),
     );
   });
+
+  test('analyzeDescription sends the text and maps its events', () async {
+    when(() => dataSource.streamAnalyzeFood(text: '2 eggs')).thenAnswer(
+      (_) => Stream.fromIterable([
+        {'_event': 'meal_name', 'name': 'Eggs'},
+      ]),
+    );
+
+    final events = await repository.analyzeDescription('2 eggs').toList();
+
+    expect((events.single as MealNameDetected).mealName, 'Eggs');
+  });
 }

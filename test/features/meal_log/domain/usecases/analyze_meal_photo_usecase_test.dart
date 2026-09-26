@@ -97,4 +97,34 @@ void main() {
     expect(events.last, isA<AnalysisFailed>());
     expect((events.last as AnalysisFailed).message, 'boom');
   });
+
+  test('fromDescription analyzes the text with no photo to upload', () async {
+    const item = MealAnalysisItem(
+      foodName: 'Egg',
+      estimatedWeightG: 100,
+      calories: 150,
+      proteinG: 12,
+      carbsG: 1,
+      fatsG: 10,
+    );
+    when(() => foodAnalysisRepository.analyzeDescription('2 eggs'))
+        .thenAnswer((_) => Stream.fromIterable(const [
+              ItemDetected(item),
+              AnalysisCompleted(
+                MealAnalysisResult(
+                  mealName: 'Eggs',
+                  healthScore: 7,
+                  items: [item],
+                ),
+              ),
+            ]));
+
+    final events =
+        await useCase.fromDescription(description: '2 eggs').toList();
+
+    final ready = events.last as PendingAnalysisReady;
+    expect(ready.pending.storagePath, isNull);
+    expect(ready.pending.items, [item]);
+    verifyZeroInteractions(imageRepository);
+  });
 }

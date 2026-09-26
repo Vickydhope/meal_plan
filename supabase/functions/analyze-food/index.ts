@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { IncrementalJsonScanner } from "./json_scanner.ts";
+import { parseAnalyzeBody } from "./request_body.ts";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const GEMINI_URL =
@@ -10,9 +11,6 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
 const RATE_LIMIT_MAX_REQUESTS = 20;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
-// Client compresses to <200KB JPEG; this is a generous server-side ceiling
-// independent of that, not the expected steady-state size.
-const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
 // `items` is declared right after `meal_name` and before the aggregate
 // fields, since Gemini's structured output tends to fill fields in
@@ -74,6 +72,21 @@ const PROMPT =
   "'No food detected', and set all totals and health_score to 0 — do not " +
   "invent food items that aren't actually present in the image.";
 
+// The description goes in its own part after these instructions, so it's
+// treated as data about the meal rather than as further instructions.
+const TEXT_PROMPT =
+  "You are a nutrition estimation engine. The next message is the user's " +
+  "own description of a meal they ate. Give it a short, appetizing meal " +
+  "name (2-4 words). Identify each distinct food item, its weight in " +
+  "grams (use the stated quantity, or a typical single serving if none is " +
+  "given), its calories, and its protein/carbs/fats in grams. Then sum " +
+  "totals for calories, protein, carbs, and fats across all items. Also " +
+  "give a health_score from 1 (unhealthy) to 10 (very healthy) based on " +
+  "nutrient balance, processing level, and portion size. Respond with " +
+  "realistic estimates even if uncertain. If the description doesn't " +
+  "mention any food or drink, return an empty items array, set meal_name " +
+  "to 'No food detected', and set all totals and health_score to 0.";
+
 const RETRYABLE_STATUSES = new Set([429, 503]);
 const MAX_ATTEMPTS = 3;
 // Caps the wait for Gemini's response headers per attempt; cleared once
@@ -85,6 +98,10 @@ const ATTEMPT_TIMEOUT_MS = 20_000;
 // the edge runtime's wall-clock limit kills it.
 const STREAM_STALL_TIMEOUT_MS = 15_000;
 
+/** An error whose message is written for the user, so it can be shown
+ * as-is; anything else (parse errors, network failures) gets generic copy. */
+class UserFacingError extends Error {}
+
 async function readWithStallTimeout(
   reader: ReadableStreamDefaultReader<Uint8Array>,
 ): Promise<ReadableStreamReadResult<Uint8Array>> {
@@ -92,7 +109,9 @@ async function readWithStallTimeout(
   const stalled = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       reader.cancel().catch(() => {});
-      reject(new Error("The AI service stopped responding. Try again."));
+      reject(
+        new UserFacingError("The AI service stopped responding. Try again."),
+      );
     }, STREAM_STALL_TIMEOUT_MS);
   });
   try {
@@ -238,7 +257,7 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  let body: { image?: string; mimeType?: string };
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
@@ -248,22 +267,10 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const { image, mimeType } = body;
-  if (!image || typeof image !== "string") {
-    return new Response(
-      JSON.stringify({ error: "Missing 'image' (base64 string) in body" }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
-  }
-
-  // Base64 encodes 3 bytes as 4 chars, so decoded size ~= length * 0.75.
-  const approxImageBytes = image.length * 0.75;
-  if (approxImageBytes > MAX_IMAGE_BYTES) {
-    return new Response(JSON.stringify({ error: "Image payload too large" }), {
-      status: 413,
+  const input = parseAnalyzeBody(body);
+  if ("error" in input) {
+    return new Response(JSON.stringify({ error: input.error }), {
+      status: input.status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
@@ -282,15 +289,14 @@ Deno.serve(async (req: Request) => {
   const geminiPayload = {
     contents: [
       {
-        parts: [
-          { text: PROMPT },
-          {
-            inline_data: {
-              mime_type: mimeType ?? "image/jpeg",
-              data: image,
+        parts: input.kind === "text"
+          ? [{ text: TEXT_PROMPT }, { text: input.text }]
+          : [
+            { text: PROMPT },
+            {
+              inline_data: { mime_type: input.mimeType, data: input.image },
             },
-          },
-        ],
+          ],
       },
     ],
     generationConfig: {
@@ -370,9 +376,11 @@ Deno.serve(async (req: Request) => {
         const parsed = JSON.parse(textBuffer);
         if (!Array.isArray(parsed.items) || parsed.items.length === 0) {
           emit("error", {
-            message:
-              "No food was detected in this photo. Try again with a " +
-              "clearer picture of your meal.",
+            message: input.kind === "text"
+              ? "No food was found in that description. Try naming what " +
+                "you ate, e.g. '2 eggs and toast'."
+              : "No food was detected in this photo. Try again with a " +
+                "clearer picture of your meal.",
           });
         } else {
           emit("done", parsed);
@@ -380,7 +388,9 @@ Deno.serve(async (req: Request) => {
       } catch (err) {
         console.error("Streaming analyze-food failed:", err);
         emit("error", {
-          message: err instanceof Error ? err.message : `${err}`,
+          message: err instanceof UserFacingError
+            ? err.message
+            : "Something went wrong analyzing this meal. Try again.",
         });
       } finally {
         controller.close();
