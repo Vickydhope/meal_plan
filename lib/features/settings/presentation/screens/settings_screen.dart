@@ -9,6 +9,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../fitness/presentation/providers/fitness_providers.dart';
+import '../../../notifications/presentation/providers/notification_providers.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -19,6 +20,7 @@ class SettingsScreen extends ConsumerWidget {
     final syncEnabled = ref.watch(activitySyncEnabledProvider).value ?? false;
     final mealWriteBack =
         ref.watch(mealWriteBackEnabledProvider).value ?? false;
+    final reminders = ref.watch(remindersEnabledProvider).value ?? false;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -79,13 +81,30 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 20),
+            _SettingsSection(
+              title: 'Notifications',
+              children: [
+                _SettingsRow(
+                  icon: Icons.notifications_outlined,
+                  label: 'Meal & weigh-in reminders',
+                  trailing: Switch.adaptive(
+                    value: reminders,
+                    onChanged: (value) => _setReminders(context, value),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
             const _SettingsSection(
               title: 'About',
               children: [
                 _SettingsRow(
                   icon: Icons.info_outline,
                   label: 'App version',
-                  trailing: Text('1.0.0', style: TextStyle(color: AppColors.textSecondary)),
+                  trailing: Text(
+                    '1.0.0',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
                 ),
               ],
             ),
@@ -138,6 +157,22 @@ class SettingsScreen extends ConsumerWidget {
     }
     container.invalidate(mealWriteBackEnabledProvider);
   }
+
+  /// Lunch 13:00, dinner 20:00, Monday 09:00 weigh-in, device-local time;
+  /// see `upcomingReminders`.
+  Future<void> _setReminders(BuildContext context, bool enabled) async {
+    final container = ProviderScope.containerOf(context);
+    final userId = container.read(authRepositoryProvider).currentUserId;
+    try {
+      await container.read(reminderRepositoryProvider).setEnabled(enabled);
+      if (enabled && userId != null) {
+        await container.read(syncRemindersUseCaseProvider)(userId);
+      }
+    } catch (err) {
+      if (context.mounted) showAppSnackBar(context, userMessageFor(err));
+    }
+    container.invalidate(remindersEnabledProvider);
+  }
 }
 
 class _SettingsSection extends StatelessWidget {
@@ -154,10 +189,7 @@ class _SettingsSection extends StatelessWidget {
         if (title != null)
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              title!.toUpperCase(),
-              style: AppTypography.label,
-            ),
+            child: Text(title!.toUpperCase(), style: AppTypography.label),
           ),
         Container(
           decoration: BoxDecoration(

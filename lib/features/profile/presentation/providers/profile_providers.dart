@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/providers/core_providers.dart';
@@ -64,4 +65,15 @@ final currentUserProfileProvider = FutureProvider<UserProfile?>((ref) async {
   final userId = await ref.watch(authUserIdProvider.future);
   if (userId == null) return null;
   return ref.watch(fetchUserProfileUseCaseProvider)(userId);
+});
+
+/// Keeps `profiles.timezone` current for server-side streak days. `HomeScreen`
+/// listens to it (runs on launch); reruns on app resume in case the device
+/// changed zone.
+final timezoneSyncProvider = FutureProvider<void>((ref) async {
+  final listener = AppLifecycleListener(onResume: ref.invalidateSelf);
+  ref.onDispose(listener.dispose);
+  final userId = ref.watch(authUserIdProvider).valueOrNull;
+  if (userId == null) return;
+  await ref.watch(profileRepositoryProvider).saveDeviceTimezone(userId);
 });

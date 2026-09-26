@@ -34,6 +34,7 @@ String _userMessageFor(Object err) => switch (err) {
   AuthFailureException(:final message) => message,
   HealthStoreUnavailableException(:final message) => message,
   HealthPermissionDeniedException(:final message) => message,
+  NotificationPermissionDeniedException(:final message) => message,
   MealLogPersistenceException() =>
     "Couldn't reach the server. Check your connection and try again.",
   ImageProcessingException() => "Couldn't process that photo. Try again.",
@@ -76,6 +77,13 @@ class HealthStoreUnavailableException extends AppException {
 class HealthPermissionDeniedException extends AppException {
   const HealthPermissionDeniedException([
     super.message = 'Allow access to steps, active energy and weight to sync.',
+  ]);
+}
+
+/// Thrown when the user declines notification permission for reminders.
+class NotificationPermissionDeniedException extends AppException {
+  const NotificationPermissionDeniedException([
+    super.message = 'Allow notifications in system settings to get reminders.',
   ]);
 }
 

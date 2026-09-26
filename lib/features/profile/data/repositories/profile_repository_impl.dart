@@ -1,3 +1,5 @@
+import 'package:flutter_timezone/flutter_timezone.dart';
+
 import '../../../../core/error/app_exception.dart';
 import '../../domain/entities/activity_level.dart';
 import '../../domain/entities/calorie_mode.dart';
@@ -77,6 +79,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
       );
     } catch (err) {
       throw MealLogPersistenceException('Failed to update profile: $err');
+    }
+  }
+
+  @override
+  Future<void> saveDeviceTimezone(String userId) async {
+    try {
+      final zone = await FlutterTimezone.getLocalTimezone();
+      await _dataSource.updateTimezone(userId, zone.identifier);
+    } catch (err) {
+      throw MealLogPersistenceException('Failed to save time zone: $err');
     }
   }
 }

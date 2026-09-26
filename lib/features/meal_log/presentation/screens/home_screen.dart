@@ -13,6 +13,7 @@ import '../../../../shared/widgets/shimmer_box.dart';
 import '../../../../shared/widgets/week_strip.dart';
 import '../../../fitness/domain/entities/daily_activity.dart';
 import '../../../fitness/presentation/providers/fitness_providers.dart';
+import '../../../notifications/presentation/providers/notification_providers.dart';
 import '../../../profile/domain/entities/calorie_mode.dart';
 import '../../../profile/domain/utils/macro_split.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
@@ -28,6 +29,8 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(mealLogProvider);
     final notifier = ref.read(mealLogProvider.notifier);
+    final hasUnread =
+        ref.watch(notificationsProvider).value?.any((n) => !n.isRead) ?? false;
 
     ref.listen(mealLogProvider, (previous, next) {
       if (next.error != null && next.error != previous?.error) {
@@ -37,6 +40,10 @@ class HomeScreen extends ConsumerWidget {
 
     // Subscribing also runs the sync (on launch, and again whenever
     // pull-to-refresh invalidates it).
+    // Side-effect-only providers: listening keeps them alive and runs them.
+    ref
+      ..listen(reminderSyncProvider, (_, _) {})
+      ..listen(timezoneSyncProvider, (_, _) {});
     ref.listen(healthWeightSyncProvider, (_, next) {
       // Only fresh results: loading/error states after a refresh still
       // carry the previous value, which would repeat the snackbar.
@@ -99,18 +106,19 @@ class HomeScreen extends ConsumerWidget {
                   context.pushNamed(AppRoute.notifications.name);
                 },
               ),
-              Positioned(
-                top: 10,
-                right: 10,
-                child: Container(
-                  height: 8,
-                  width: 8,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.error,
+              if (hasUnread)
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    height: 8,
+                    width: 8,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.error,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           Padding(
@@ -130,7 +138,8 @@ class HomeScreen extends ConsumerWidget {
           onRefresh: () {
             ref
               ..invalidate(todayActivityProvider)
-              ..invalidate(healthWeightSyncProvider);
+              ..invalidate(healthWeightSyncProvider)
+              ..invalidate(notificationsProvider);
             return notifier.fetchLogsForSelectedDate();
           },
           child: CustomScrollView(

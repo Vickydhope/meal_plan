@@ -1,77 +1,65 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/error/app_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../domain/entities/app_notification.dart';
+import '../providers/notification_providers.dart';
 
-enum _NotificationType { meal, streak, reminder, tip }
-
-class _AppNotification {
-  const _AppNotification({
-    required this.type,
-    required this.title,
-    required this.body,
-    required this.timeAgo,
-    this.read = false,
-  });
-
-  final _NotificationType type;
-  final String title;
-  final String body;
-  final String timeAgo;
-  final bool read;
+/// "10m ago", "2h ago", "Yesterday", "3 days ago".
+String timeAgo(DateTime time, DateTime now) {
+  final diff = now.difference(time);
+  if (diff.inMinutes < 1) return 'Just now';
+  if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+  if (diff.inDays < 1) return '${diff.inHours}h ago';
+  if (diff.inDays == 1) return 'Yesterday';
+  return '${diff.inDays} days ago';
 }
 
-// Dummy data — no backend/notification feature exists yet, this just
-// gives the bell icon on HomeScreen somewhere to go.
-const _dummyNotifications = [
-  _AppNotification(
-    type: _NotificationType.reminder,
-    title: 'Log your lunch',
-    body: "You haven't logged a meal since breakfast. Snap a photo to keep today on track.",
-    timeAgo: '10m ago',
-  ),
-  _AppNotification(
-    type: _NotificationType.streak,
-    title: '5-day streak! 🔥',
-    body: "You've logged a meal every day this week. Keep it going!",
-    timeAgo: '2h ago',
-  ),
-  _AppNotification(
-    type: _NotificationType.meal,
-    title: 'Meal analyzed',
-    body: '"Grilled chicken bowl" was added to your log — 540 kcal.',
-    timeAgo: '5h ago',
-    read: true,
-  ),
-  _AppNotification(
-    type: _NotificationType.tip,
-    title: 'Tip: portion sizing',
-    body: "Adjust the portion slider on a scan if it looks bigger or smaller than what's on Gemini's plate.",
-    timeAgo: 'Yesterday',
-    read: true,
-  ),
-  _AppNotification(
-    type: _NotificationType.meal,
-    title: 'Meal analyzed',
-    body: '"Avocado toast" was added to your log — 320 kcal.',
-    timeAgo: 'Yesterday',
-    read: true,
-  ),
-  _AppNotification(
-    type: _NotificationType.reminder,
-    title: "Don't forget to weigh in",
-    body: 'Weekly check-ins help keep your calorie target accurate.',
-    timeAgo: '2 days ago',
-    read: true,
-  ),
-];
-
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
+  ConsumerState<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  late final ProviderContainer _container;
+
+  @override
+  void initState() {
+    super.initState();
+    // Captured up front: ref can't be used in dispose.
+    _container = ProviderScope.containerOf(context, listen: false);
+    final userId = ref.read(authRepositoryProvider).currentUserId;
+    // Unread dots stay visible for this visit; the badge clears on leaving.
+    if (userId != null) {
+      unawaited(
+        ref
+            .read(notificationRepositoryProvider)
+            .markAllRead(userId)
+            .catchError((_) {}),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _container.invalidate(notificationsProvider);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final notifications = ref.watch(notificationsProvider);
+    final now = DateTime.now();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -80,56 +68,81 @@ class NotificationsScreen extends StatelessWidget {
         title: const Text('Notifications'),
       ),
       body: SafeArea(
-        child: _dummyNotifications.isEmpty
-            ? const _EmptyState()
-            : ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: _dummyNotifications.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (context, index) =>
-                    _NotificationCard(notification: _dummyNotifications[index]),
-              ),
+        child: RefreshIndicator(
+          onRefresh: () => ref.refresh(notificationsProvider.future),
+          child: notifications.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) =>
+                _Message(icon: LucideIcons.wifi_off, text: userMessageFor(err)),
+            data: (items) => items.isEmpty
+                ? const _Message(
+                    icon: LucideIcons.bell_off,
+                    text: "You're all caught up",
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) => _NotificationCard(
+                      notification: items[index],
+                      timeAgo: timeAgo(items[index].createdAt, now),
+                    ),
+                  ),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+/// Scrollable so pull-to-refresh still works on an empty/error state.
+class _Message extends StatelessWidget {
+  const _Message({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(LucideIcons.bell_off, size: 40, color: AppColors.textTertiary),
-          SizedBox(height: 12),
-          Text("You're all caught up", style: TextStyle(color: AppColors.textSecondary)),
-        ],
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(
+          height: constraints.maxHeight,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 40, color: AppColors.textTertiary),
+                const SizedBox(height: 12),
+                Text(
+                  text,
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
 class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.notification});
+  const _NotificationCard({required this.notification, required this.timeAgo});
 
-  final _AppNotification notification;
+  final AppNotification notification;
+  final String timeAgo;
 
   IconData get _icon => switch (notification.type) {
-        _NotificationType.meal => LucideIcons.utensils,
-        _NotificationType.streak => LucideIcons.flame,
-        _NotificationType.reminder => LucideIcons.clock,
-        _NotificationType.tip => LucideIcons.lightbulb,
-      };
+    AppNotificationType.meal => LucideIcons.utensils,
+    AppNotificationType.streak => LucideIcons.flame,
+  };
 
   Color get _iconColor => switch (notification.type) {
-        _NotificationType.meal => AppColors.primary,
-        _NotificationType.streak => AppColors.accent,
-        _NotificationType.reminder => AppColors.carbs,
-        _NotificationType.tip => AppColors.protein,
-      };
+    AppNotificationType.meal => AppColors.primary,
+    AppNotificationType.streak => AppColors.accent,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -164,26 +177,33 @@ class _NotificationCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      notification.timeAgo,
-                      style: AppTypography.caption11.copyWith(color: AppColors.textTertiary),
+                      timeAgo,
+                      style: AppTypography.caption11.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
                   notification.body,
-                  style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
-          if (!notification.read) ...[
+          if (!notification.isRead) ...[
             const SizedBox(width: 8),
             Container(
               margin: const EdgeInsets.only(top: 4),
               height: 8,
               width: 8,
-              decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.error),
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.error,
+              ),
             ),
           ],
         ],

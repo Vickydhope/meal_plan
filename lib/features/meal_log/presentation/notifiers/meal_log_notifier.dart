@@ -8,6 +8,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import '../../../../core/error/app_exception.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../fitness/presentation/providers/fitness_providers.dart';
+import '../../../notifications/presentation/providers/notification_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../domain/entities/meal_analysis_item.dart';
 import '../../domain/entities/meal_analysis_stream_event.dart';
@@ -299,6 +300,9 @@ class MealLogNotifier extends Notifier<MealLogState> {
         analysis: pending,
       );
       _mirrorToHealth(() => ref.read(writeMealToHealthUseCaseProvider)(newLog));
+      // The insert trigger just wrote a feed row; refresh the bell badge.
+      ref.invalidate(notificationsProvider);
+      _mealsChanged();
       // createdAt (a DB row's created_at, parsed as UTC) and selectedDate (a
       // local-midnight DateTime) must be compared in the same zone — see the
       // note in MealLogRemoteDataSource.fetchLogsForRange for the same class
@@ -316,6 +320,9 @@ class MealLogNotifier extends Notifier<MealLogState> {
       state = state.copyWith(isProcessing: false, error: userMessageFor(err));
     }
   }
+
+  /// Today's logged meal types decide which reminders are skipped.
+  void _mealsChanged() => ref.invalidate(reminderSyncProvider);
 
   /// Fire-and-forget: the meal is already saved, and the health store is
   /// only a mirror, so a failure there is reported and surfaced via
@@ -358,6 +365,7 @@ class MealLogNotifier extends Notifier<MealLogState> {
     try {
       await ref.read(deleteMealLogUseCaseProvider)(log.id);
       _mirrorToHealth(() => ref.read(removeMealFromHealthUseCaseProvider)(log));
+      _mealsChanged();
     } catch (err) {
       state = state.copyWith(
         logs: [...state.logs]..insert(index, log),
@@ -377,6 +385,7 @@ class MealLogNotifier extends Notifier<MealLogState> {
     try {
       await ref.read(restoreMealLogUseCaseProvider)(log.id);
       _mirrorToHealth(() => ref.read(writeMealToHealthUseCaseProvider)(log));
+      _mealsChanged();
     } catch (err) {
       final idx = state.logs.indexWhere((l) => l.id == log.id);
       state = state.copyWith(
@@ -394,6 +403,7 @@ class MealLogNotifier extends Notifier<MealLogState> {
       _mirrorToHealth(
         () => ref.read(writeMealToHealthUseCaseProvider)(updated),
       );
+      _mealsChanged();
       final index = state.logs.indexWhere((l) => l.id == updated.id);
       if (index == -1) return;
       state = state.copyWith(logs: [...state.logs]..[index] = updated);

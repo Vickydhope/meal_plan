@@ -33,4 +33,8 @@ abstract class ProfileRepository {
     String? avatarPath,
     CalorieMode? calorieMode,
   });
+
+  /// Stores the device's current time zone, which the backend uses to
+  /// decide which calendar day a meal counts toward for streaks.
+  Future<void> saveDeviceTimezone(String userId);
 }

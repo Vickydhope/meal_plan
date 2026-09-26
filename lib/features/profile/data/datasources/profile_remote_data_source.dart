@@ -22,4 +22,13 @@ class ProfileRemoteDataSource {
   Future<void> upsertProfile(Map<String, dynamic> values) {
     return _client.from('profiles').upsert(values, onConflict: 'id');
   }
+
+  /// A plain update, not an upsert: a no-op until onboarding creates the
+  /// row, rather than creating a half-empty profile.
+  Future<void> updateTimezone(String userId, String timezone) {
+    return _client
+        .from('profiles')
+        .update({'timezone': timezone})
+        .eq('id', userId);
+  }
 }
