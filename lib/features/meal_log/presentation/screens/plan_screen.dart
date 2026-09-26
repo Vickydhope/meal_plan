@@ -58,19 +58,11 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
   ActivityLevel? _activityLevel;
   Goal? _goal;
 
-  // Snapshot of the last-saved (or just-loaded) values, used to detect
-  // unsaved edits so the save button can hide when there's nothing to save.
-  Sex? _savedSex;
-  DateTime? _savedDob;
-  BodyMetrics? _savedBodyMetrics;
-  ActivityLevel? _savedActivityLevel;
-  Goal? _savedGoal;
-
   bool _saving = false;
   String? _error;
 
-  /// Saved on its own (not via the ✓ plan save), right when it's toggled —
-  /// see [_setCalorieMode].
+  /// Saved on its own via [updateProfileUseCaseProvider], right when it's
+  /// toggled — see [_setCalorieMode].
   CalorieMode _calorieMode = CalorieMode.fixed;
 
   void _initFromProfile(UserProfile? profile) {
@@ -84,15 +76,6 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
     _activityLevel = profile.activityLevel;
     _goal = profile.goal;
     _calorieMode = profile.calorieMode;
-    _syncSavedSnapshot();
-  }
-
-  void _syncSavedSnapshot() {
-    _savedSex = _sex;
-    _savedDob = _dob;
-    _savedBodyMetrics = _bodyMetrics;
-    _savedActivityLevel = _activityLevel;
-    _savedGoal = _goal;
   }
 
   bool get _isComplete =>
@@ -101,13 +84,6 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       _bodyMetrics != null &&
       _activityLevel != null &&
       _goal != null;
-
-  bool get _isDirty =>
-      _sex != _savedSex ||
-      _dob != _savedDob ||
-      _bodyMetrics != _savedBodyMetrics ||
-      _activityLevel != _savedActivityLevel ||
-      _goal != _savedGoal;
 
   CalorieTargetResult? get _preview {
     if (!_isComplete) return null;
@@ -198,7 +174,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       builder: (value, onChanged) =>
           SexStep(value: value, onChanged: onChanged, compact: true),
     );
-    if (result != null) setState(() => _sex = result);
+    if (result != null && result != _sex) _apply(() => _sex = result);
   }
 
   Future<void> _editDob() async {
@@ -207,7 +183,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       builder: (value, onChanged) =>
           DobStep(value: value, onChanged: onChanged, compact: true),
     );
-    if (result != null) setState(() => _dob = result);
+    if (result != null && result != _dob) _apply(() => _dob = result);
   }
 
   Future<void> _editBodyMetrics() async {
@@ -216,7 +192,9 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       builder: (value, onChanged) =>
           BodyMetricsStep(value: value, onChanged: onChanged, compact: true),
     );
-    if (result != null) setState(() => _bodyMetrics = result);
+    if (result != null && result != _bodyMetrics) {
+      _apply(() => _bodyMetrics = result);
+    }
   }
 
   Future<void> _editActivityLevel() async {
@@ -225,7 +203,9 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       builder: (value, onChanged) =>
           ActivityLevelStep(value: value, onChanged: onChanged, compact: true),
     );
-    if (result != null) setState(() => _activityLevel = result);
+    if (result != null && result != _activityLevel) {
+      _apply(() => _activityLevel = result);
+    }
   }
 
   Future<void> _editGoal() async {
@@ -234,7 +214,13 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       builder: (value, onChanged) =>
           GoalStep(value: value, onChanged: onChanged, compact: true),
     );
-    if (result != null) setState(() => _goal = result);
+    if (result != null && result != _goal) _apply(() => _goal = result);
+  }
+
+  /// Each sheet's Done is the confirmation, so an edit saves right away.
+  void _apply(VoidCallback update) {
+    setState(update);
+    _save();
   }
 
   Future<void> _save() async {
@@ -260,10 +246,14 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
       );
       ref.invalidate(currentUserProfileProvider);
       await ref.read(mealLogProvider.notifier).refreshProfile();
-      _syncSavedSnapshot();
       if (mounted) showAppSnackBar(context, 'Plan updated');
     } catch (err) {
-      setState(() => _error = userMessageFor(err));
+      // Roll the fields back to the last-saved profile.
+      setState(() {
+        _error = userMessageFor(err);
+        _initialized = false;
+        _initFromProfile(ref.read(currentUserProfileProvider).value);
+      });
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -341,28 +331,17 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
         elevation: 0,
         title: const Text('My Plan'),
         actions: [
-          if (_saving || _isDirty)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: _saving
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    )
-                  : IconButton(
-                      onPressed: _isComplete ? _save : null,
-                      icon: const Icon(Icons.check),
-                      color: AppColors.primary,
-                      disabledColor: AppColors.textDisabled,
-                      tooltip: 'Save Changes',
-                    ),
+          if (_saving)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(12, 12, 20, 12),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primary,
+                ),
+              ),
             ),
         ],
       ),
@@ -411,13 +390,13 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
                         _PlanFieldRow(
                           label: 'Sex',
                           value: _sex?.label ?? 'Not set',
-                          onTap: _editSex,
+                          onTap: _saving ? null : _editSex,
                         ),
                         const Divider(height: 1, color: AppColors.border),
                         _PlanFieldRow(
                           label: 'Date of birth',
                           value: _dob == null ? 'Not set' : _formatDate(_dob!),
-                          onTap: _editDob,
+                          onTap: _saving ? null : _editDob,
                         ),
                         const Divider(height: 1, color: AppColors.border),
                         _PlanFieldRow(
@@ -425,19 +404,19 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
                           value: _bodyMetrics == null
                               ? 'Not set'
                               : _formatBodyMetrics(_bodyMetrics!),
-                          onTap: _editBodyMetrics,
+                          onTap: _saving ? null : _editBodyMetrics,
                         ),
                         const Divider(height: 1, color: AppColors.border),
                         _PlanFieldRow(
                           label: 'Activity level',
                           value: _activityLevel?.label ?? 'Not set',
-                          onTap: _editActivityLevel,
+                          onTap: _saving ? null : _editActivityLevel,
                         ),
                         const Divider(height: 1, color: AppColors.border),
                         _PlanFieldRow(
                           label: 'Goal',
                           value: _goal?.label ?? 'Not set',
-                          onTap: _editGoal,
+                          onTap: _saving ? null : _editGoal,
                         ),
                       ],
                     ),
@@ -639,7 +618,7 @@ class _PlanFieldRow extends StatelessWidget {
 
   final String label;
   final String value;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
