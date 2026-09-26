@@ -1,7 +1,7 @@
-enum AppNotificationType { meal, streak }
+enum AppNotificationType { meal, streak, weekly }
 
-/// A row of the in-app feed, written server-side by the `meal_logs` insert
-/// trigger (see the `notifications` migration).
+/// A row of the in-app feed, written server-side: meal/streak rows by the
+/// `meal_logs` insert trigger, weekly ones by the `weekly_summaries` cron job.
 class AppNotification {
   const AppNotification({
     required this.id,

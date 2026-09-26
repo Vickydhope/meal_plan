@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_lucide/flutter_lucide.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/app_exception.dart';
+import '../../../../core/router/app_route.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
@@ -137,16 +139,19 @@ class _NotificationCard extends StatelessWidget {
   IconData get _icon => switch (notification.type) {
     AppNotificationType.meal => LucideIcons.utensils,
     AppNotificationType.streak => LucideIcons.flame,
+    AppNotificationType.weekly => LucideIcons.chart_column,
   };
 
   Color get _iconColor => switch (notification.type) {
     AppNotificationType.meal => AppColors.primary,
     AppNotificationType.streak => AppColors.accent,
+    AppNotificationType.weekly => AppColors.water,
   };
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final isWeekly = notification.type == AppNotificationType.weekly;
+    final card = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -191,6 +196,15 @@ class _NotificationCard extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                if (isWeekly) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'See trends',
+                    style: AppTypography.caption12Medium.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -209,5 +223,13 @@ class _NotificationCard extends StatelessWidget {
         ],
       ),
     );
+    // The weekly summary opens the Trends screen with the full picture.
+    return isWeekly
+        ? GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => context.pushNamed(AppRoute.trends.name),
+            child: card,
+          )
+        : card;
   }
 }

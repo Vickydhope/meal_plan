@@ -12,6 +12,7 @@ class NotificationRepositoryImpl implements NotificationRepository {
   final SupabaseClient _client;
 
   static const _table = 'notifications';
+  static final _types = AppNotificationType.values.asNameMap();
 
   @override
   Future<List<AppNotification>> fetchRecent(String userId) async {
@@ -24,14 +25,17 @@ class NotificationRepositoryImpl implements NotificationRepository {
           .limit(50);
       return [
         for (final row in rows)
-          AppNotification(
-            id: row['id'] as String,
-            type: AppNotificationType.values.byName(row['type'] as String),
-            title: row['title'] as String,
-            body: row['body'] as String,
-            createdAt: DateTime.parse(row['created_at'] as String),
-            readAt: DateTime.tryParse(row['read_at'] as String? ?? ''),
-          ),
+          // Skips types this build doesn't know, so a new server-side type
+          // can't break the whole feed for older app versions.
+          if (_types[row['type']] case final type?)
+            AppNotification(
+              id: row['id'] as String,
+              type: type,
+              title: row['title'] as String,
+              body: row['body'] as String,
+              createdAt: DateTime.parse(row['created_at'] as String),
+              readAt: DateTime.tryParse(row['read_at'] as String? ?? ''),
+            ),
       ];
     } catch (err) {
       throw MealLogPersistenceException('Failed to load notifications: $err');

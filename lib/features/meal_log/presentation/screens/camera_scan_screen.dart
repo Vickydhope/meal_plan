@@ -203,6 +203,10 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
         : CapturePhase.captured;
 
     return Scaffold(
+      // The describe sheet lifts itself above the keyboard; resizing this
+      // screen behind it would squeeze the fixed-size photo frame and
+      // overflow.
+      resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
