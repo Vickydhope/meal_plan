@@ -239,7 +239,7 @@ void main() {
   });
 
   test('confirmMealLog mirrors the saved meal into Health when enabled, '
-      'and a Health failure does not surface as a meal error', () async {
+      'and a Health failure is surfaced without losing the meal', () async {
     stubSuccessfulAnalysis();
     final saved = _log('log-1');
     when(
@@ -261,6 +261,6 @@ void main() {
     verify(() => fitness.writeMeal(saved)).called(1);
     final state = container.read(mealLogProvider);
     expect(state.logs, [saved]);
-    expect(state.error, isNull);
+    expect(state.error, 'store down');
   });
 }

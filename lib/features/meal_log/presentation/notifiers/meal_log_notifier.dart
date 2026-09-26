@@ -318,15 +318,16 @@ class MealLogNotifier extends Notifier<MealLogState> {
   }
 
   /// Fire-and-forget: the meal is already saved, and the health store is
-  /// only a mirror, so a failure there is reported, not shown as an error.
+  /// only a mirror, so a failure there is reported and surfaced via
+  /// [MealLogState.error] without touching the saved meal.
   void _mirrorToHealth(Future<void> Function() op) {
     // Future.sync: a synchronous throw must not escape into the caller's
     // try/catch and roll back a meal change that did succeed.
     unawaited(
-      Future.sync(op).catchError(
-        (Object err, StackTrace stack) =>
-            Sentry.captureException(err, stackTrace: stack),
-      ),
+      Future.sync(op).catchError((Object err, StackTrace stack) {
+        Sentry.captureException(err, stackTrace: stack);
+        state = state.copyWith(error: userMessageFor(err));
+      }),
     );
   }
 
