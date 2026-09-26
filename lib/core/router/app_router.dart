@@ -17,7 +17,7 @@ import '../../features/profile/presentation/providers/profile_providers.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import 'app_route.dart';
-import 'auth_loading_screen.dart';
+import 'splash_screen.dart';
 import 'router_refresh_notifier.dart';
 
 /// Builds the app's [GoRouter], gating access to onboarding/the main shell
@@ -25,26 +25,34 @@ import 'router_refresh_notifier.dart';
 /// `_AuthGate` used to implement with a `StreamBuilder`/`AsyncValue.when`.
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: AppRoute.login.path,
+    initialLocation: AppRoute.splash.path,
     refreshListenable: ref.watch(routerRefreshNotifierProvider),
     redirect: (context, state) {
-      final onAuthScreen = state.matchedLocation == AppRoute.login.path ||
+      final onAuthScreen =
+          state.matchedLocation == AppRoute.login.path ||
           state.matchedLocation == AppRoute.signup.path;
 
       final userIdAsync = ref.read(authUserIdProvider);
+      // Session restore hasn't emitted yet — not "signed out", so don't
+      // flash the login screen before a restored session lands.
+      if (userIdAsync.isLoading) {
+        return state.matchedLocation == AppRoute.splash.path
+            ? null
+            : AppRoute.splash.path;
+      }
       final userId = userIdAsync.valueOrNull;
-      if (userIdAsync.isLoading || userId == null) {
+      if (userId == null) {
         return onAuthScreen ? null : AppRoute.login.path;
       }
 
       final profileAsync = ref.read(currentUserProfileProvider);
       return profileAsync.when(
-        loading: () => state.matchedLocation == AppRoute.authLoading.path
+        loading: () => state.matchedLocation == AppRoute.splash.path
             ? null
-            : AppRoute.authLoading.path,
-        error: (_, _) => state.matchedLocation == AppRoute.authLoading.path
+            : AppRoute.splash.path,
+        error: (_, _) => state.matchedLocation == AppRoute.splash.path
             ? null
-            : AppRoute.authLoading.path,
+            : AppRoute.splash.path,
         data: (profile) {
           final onboarded = profile?.hasCompletedOnboarding ?? false;
           if (!onboarded) {
@@ -52,9 +60,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                 ? null
                 : AppRoute.onboarding.path;
           }
-          final atGateRoute = onAuthScreen ||
+          final atGateRoute =
+              onAuthScreen ||
               state.matchedLocation == AppRoute.onboarding.path ||
-              state.matchedLocation == AppRoute.authLoading.path;
+              state.matchedLocation == AppRoute.splash.path;
           return atGateRoute ? AppRoute.home.path : null;
         },
       );
@@ -76,13 +85,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const OnboardingScreen(),
       ),
       GoRoute(
-        name: AppRoute.authLoading.name,
-        path: AppRoute.authLoading.path,
-        builder: (context, state) => const AuthLoadingScreen(),
+        name: AppRoute.splash.name,
+        path: AppRoute.splash.path,
+        builder: (context, state) => const SplashScreen(),
       ),
-      StatefulShellRoute.indexedStack(
+      StatefulShellRoute(
         builder: (context, state, navigationShell) =>
             AppShell(navigationShell: navigationShell),
+        navigatorContainerBuilder: (context, navigationShell, children) =>
+            AnimatedBranchContainer(
+              currentIndex: navigationShell.currentIndex,
+              children: children,
+            ),
         branches: [
           StatefulShellBranch(
             routes: [

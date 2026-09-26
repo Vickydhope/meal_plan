@@ -5,7 +5,7 @@ enum AppRoute {
   login('/login'),
   signup('/signup'),
   onboarding('/onboarding'),
-  authLoading('/loading'),
+  splash('/splash'),
   home('/home'),
   askAi('/ask-ai'),
   plan('/plan'),

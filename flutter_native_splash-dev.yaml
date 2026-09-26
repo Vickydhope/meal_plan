@@ -1,0 +1,11 @@
+# Android native launch screen for the dev flavor — matches SplashScreen
+# (lib/core/router/splash_screen.dart): white background, logo at 160dp.
+# Regenerate: dart run flutter_native_splash:create --flavors dev,prod
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/splash/app_logo_dev.png
+  android_12:
+    color: "#FFFFFF"
+    image: assets/splash/app_logo_dev_android12.png
+  ios: false
+  web: false

@@ -1,0 +1,9 @@
+# iOS native launch screen (both flavors — per-flavor iOS launch screens
+# need Xcode storyboard wiring). Android is per-flavor: see
+# flutter_native_splash-dev.yaml / -prod.yaml.
+# Regenerate: dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/splash/app_logo.png
+  android: false
+  web: false
