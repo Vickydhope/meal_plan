@@ -110,6 +110,9 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
+    // As in the app, where Home keeps the day's list alive: created up
+    // front, so its initial fetch can't land after (and clobber) a save.
+    container.read(mealLogProvider);
   });
 
   void stubSuccessfulAnalysis() {
@@ -145,11 +148,11 @@ void main() {
     'analyzeCapturedPhoto stages the result as a pending analysis',
     () async {
       stubSuccessfulAnalysis();
-      final notifier = container.read(mealLogProvider.notifier);
+      final notifier = container.read(scanSessionProvider.notifier);
 
       await notifier.analyzeCapturedPhoto('/tmp/photo.jpg');
 
-      final state = container.read(mealLogProvider);
+      final state = container.read(scanSessionProvider);
       expect(state.pendingAnalysis?.mealName, 'Rice Bowl');
       expect(state.pendingAnalysis?.storagePath, 'user-1/1.jpg');
       expect(state.pendingAnalysis?.items, [_item]);
@@ -171,10 +174,10 @@ void main() {
     ).thenThrow(const ImageProcessingException('Failed to upload: 500 raw'));
 
     await container
-        .read(mealLogProvider.notifier)
+        .read(scanSessionProvider.notifier)
         .analyzeCapturedPhoto('/tmp/photo.jpg');
 
-    final state = container.read(mealLogProvider);
+    final state = container.read(scanSessionProvider);
     expect(state.error, isNotNull);
     expect(state.error, isNot(contains('raw')));
     expect(state.isProcessing, isFalse);
@@ -185,17 +188,17 @@ void main() {
     when(() => auth.currentUserId).thenReturn(null);
 
     await container
-        .read(mealLogProvider.notifier)
+        .read(scanSessionProvider.notifier)
         .analyzeCapturedPhoto('/tmp/photo.jpg');
 
     expect(
-      container.read(mealLogProvider).error,
+      container.read(scanSessionProvider).error,
       const NotSignedInException().message,
     );
     verifyNever(() => images.compressImage(any()));
   });
 
-  test('confirmMealLog prepends the saved log and clears the pending '
+  test('confirm prepends the saved log to the day and clears the pending '
       'analysis', () async {
     stubSuccessfulAnalysis();
     final saved = _log('log-1');
@@ -205,15 +208,34 @@ void main() {
         analysis: any(named: 'analysis'),
       ),
     ).thenAnswer((_) async => saved);
-    final notifier = container.read(mealLogProvider.notifier);
-    await notifier.analyzeCapturedPhoto('/tmp/photo.jpg');
+    final scan = container.read(scanSessionProvider.notifier);
+    await scan.analyzeCapturedPhoto('/tmp/photo.jpg');
 
-    await notifier.confirmMealLog();
+    expect(await scan.confirm(), isTrue);
 
-    final state = container.read(mealLogProvider);
-    expect(state.logs, [saved]);
+    expect(container.read(mealLogProvider).logs, [saved]);
+    final state = container.read(scanSessionProvider);
     expect(state.pendingAnalysis, isNull);
     expect(state.isProcessing, isFalse);
+  });
+
+  test('confirm keeps the pending analysis and reports failure when the '
+      'save fails', () async {
+    stubSuccessfulAnalysis();
+    when(
+      () => mealLogs.saveMealLog(
+        userId: any(named: 'userId'),
+        analysis: any(named: 'analysis'),
+      ),
+    ).thenThrow(const MealLogPersistenceException('PostgrestException'));
+    final scan = container.read(scanSessionProvider.notifier);
+    await scan.analyzeCapturedPhoto('/tmp/photo.jpg');
+
+    expect(await scan.confirm(), isFalse);
+
+    expect(container.read(scanSessionProvider).pendingAnalysis, isNotNull);
+    expect(container.read(mealLogProvider).logs, isEmpty);
+    expect(container.read(mealLogProvider).error, isNotNull);
   });
 
   test('deleteMealLog puts the log back and shows a safe message when the '
@@ -239,7 +261,7 @@ void main() {
     expect(state.error, isNot(contains('Postgrest')));
   });
 
-  test('confirmMealLog mirrors the saved meal into Health when enabled, '
+  test('confirm mirrors the saved meal into Health when enabled, '
       'and a Health failure is surfaced without losing the meal', () async {
     stubSuccessfulAnalysis();
     final saved = _log('log-1');
@@ -253,10 +275,10 @@ void main() {
     when(() => fitness.deleteMeal(any())).thenAnswer((_) async {});
     when(() => fitness.writeMeal(saved))
         .thenThrow(const HealthStoreUnavailableException('store down'));
-    final notifier = container.read(mealLogProvider.notifier);
-    await notifier.analyzeCapturedPhoto('/tmp/photo.jpg');
+    final scan = container.read(scanSessionProvider.notifier);
+    await scan.analyzeCapturedPhoto('/tmp/photo.jpg');
 
-    await notifier.confirmMealLog();
+    await scan.confirm();
     await pumpEventQueue();
 
     verify(() => fitness.writeMeal(saved)).called(1);
@@ -275,7 +297,7 @@ void main() {
     when(() => analysis.cancelInFlight()).thenAnswer((_) {
       events.close();
     });
-    final notifier = container.read(mealLogProvider.notifier);
+    final notifier = container.read(scanSessionProvider.notifier);
 
     unawaited(notifier.analyzeDescription('rice bowl'));
     await pumpEventQueue();
@@ -285,7 +307,7 @@ void main() {
     await pumpEventQueue();
     await notifier.stopAnalyzing();
 
-    final state = container.read(mealLogProvider);
+    final state = container.read(scanSessionProvider);
     expect(state.error, isNull);
     expect(state.pendingAnalysis?.storagePath, isNull);
     expect(state.pendingAnalysis?.mealName, 'Rice Bowl');

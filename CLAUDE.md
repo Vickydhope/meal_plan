@@ -81,7 +81,7 @@ lib/
       repositories/            # *RepositoryImpl, implement the domain interfaces
     presentation/
       state/meal_log_state.dart
-      notifiers/meal_log_notifier.dart   # depends only on use cases + AuthRepository
+      notifiers/                 # MealLogNotifier (the day's logs), ScanSessionNotifier (scan → review → confirm); use cases + AuthRepository only
       providers/meal_log_providers.dart  # DI wiring: binds datasource -> repo -> usecase -> notifier
       screens/                 # AppShell, HomeScreen, CameraScanScreen, ScanResultScreen, PlanScreen
   shared/widgets/               # CalorieRing, MacroRing, WeekStrip — presentation-only, feature-agnostic
@@ -92,12 +92,12 @@ lib/
 **Client → Storage → Edge Function → Gemini** is the core data flow for meal logging:
 
 1. `CameraScanScreen` captures a photo with `package:camera`.
-2. `MealLogNotifier.analyzeCapturedPhoto` calls `AnalyzeMealPhotoUseCase`, which compresses the photo client-side to under 200KB JPEG (`ImageRepository.compressImage`), uploads it to the `food-images` Storage bucket under `<userId>/<timestamp>.jpg`, then calls the `analyze-food` Edge Function via `FoodAnalysisRepository.analyze`.
+2. `ScanSessionNotifier.analyzeCapturedPhoto` calls `AnalyzeMealPhotoUseCase`, which compresses the photo client-side to under 200KB JPEG (`ImageRepository.compressImage`), uploads it to the `food-images` Storage bucket under `<userId>/<timestamp>.jpg`, then calls the `analyze-food` Edge Function via `FoodAnalysisRepository.analyze`.
 3. The Edge Function (`supabase/functions/analyze-food/index.ts`) forwards the image to Gemini with a fixed JSON response schema (meal name, per-item macros, health score), retrying on `429`/`503` with exponential backoff (up to 5 attempts).
 4. The result becomes a `PendingMealAnalysis` entity — *not* yet persisted. The user reviews/edits it on `ScanResultScreen` (adjust meal name, per-ingredient portion multipliers via `MealAnalysisItem.portion`) before confirming.
 5. `ConfirmMealLogUseCase` inserts the finalized totals into the `meal_logs` table via `MealLogRepository`. `DiscardPendingMealUseCase` removes the orphaned Storage upload if the user backs out.
 
-**State management**: Riverpod (`flutter_riverpod`), single `NotifierProvider` (`mealLogProvider` → `MealLogNotifier`) holding all meal-log/profile state (`MealLogState`). The notifier is a thin orchestrator — all Supabase-specific logic lives in `data/`.
+**State management**: Riverpod (`flutter_riverpod`). `mealLogProvider` (`MealLogNotifier`/`MealLogState`) holds the selected day's logs and their CRUD side effects (Health mirror, reminders); `scanSessionProvider` (`ScanSessionNotifier`/`ScanSessionState`) holds one scan → review session and hands the confirmed meal to `MealLogNotifier.logMeal`. Profile data (name, avatar, `dailyCalorieTargetProvider`) is read from `profile_providers.dart`, never copied into meal-log state. Notifiers are thin orchestrators — all Supabase-specific logic lives in `data/`.
 
 **Backend**: Supabase Postgres with `meal_logs` and `profiles` tables (see `MealLogDto`/`UserProfileDto` in `data/models/` for the expected schema, and `supabase/migrations/` for the versioned schema — a `supabase db reset` against the local stack replays these from scratch). Auth is email/password (`AuthRepository.signUpWithEmail`/`signInWithEmail`/`signOut`, `lib/features/auth/`), reactively gated via `AuthRepository.userIdChanges` in the router. `LoginScreen` and `SignupScreen` are separate top-level routes (`AppRoute.login`/`AppRoute.signup`) sharing visual chrome via `AuthFormCard`, not one screen toggling between modes. `main.dart` is the only place allowed to touch `Supabase.initialize`/`Supabase.instance` directly — everywhere else goes through `core/providers/core_providers.dart`.
 

@@ -45,12 +45,12 @@ String? _categoryFor(String foodName) {
 /// Ingredient portion multipliers offered by each card's inline stepper.
 const portionSteps = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
-/// Removes ingredient [index] via [mealLogProvider], then surfaces either
-/// an "Undo" snackbar (restoring it via [MealLogNotifier.restoreItem]) or,
+/// Removes ingredient [index] via [scanSessionProvider], then surfaces either
+/// an "Undo" snackbar (restoring it via [ScanSessionNotifier.restoreItem]) or,
 /// if the removal was refused for being the meal's last ingredient, a
 /// validation message — a meal can't end up with zero ingredients.
 void _removeWithUndo(BuildContext context, WidgetRef ref, int index) {
-  final notifier = ref.read(mealLogProvider.notifier);
+  final notifier = ref.read(scanSessionProvider.notifier);
   final removed = notifier.removeItem(index);
 
   if (removed == null) {
@@ -67,7 +67,7 @@ void _removeWithUndo(BuildContext context, WidgetRef ref, int index) {
 
 /// Renders the detected ingredients as a list of cards. When [editable] is
 /// true (the settled "reviewing" phase), each card gets an inline portion
-/// stepper and a remove button wired straight to [mealLogProvider] — there
+/// stepper and a remove button wired straight to [scanSessionProvider] — there
 /// is no separate edit sheet, editing happens in place.
 class IngredientsSection extends ConsumerWidget {
   const IngredientsSection({
@@ -96,7 +96,7 @@ class IngredientsSection extends ConsumerWidget {
                     item: entry.value,
                     canDismiss: items.length > 1,
                     onPortionChanged: (portion) => ref
-                        .read(mealLogProvider.notifier)
+                        .read(scanSessionProvider.notifier)
                         .setItemPortion(entry.key, portion),
                     onRemove: () => _removeWithUndo(context, ref, entry.key),
                   )

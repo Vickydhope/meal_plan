@@ -27,7 +27,9 @@ import '../../domain/usecases/relog_meal_usecase.dart';
 import '../../domain/usecases/restore_meal_log_usecase.dart';
 import '../../domain/usecases/update_meal_log_usecase.dart';
 import '../notifiers/meal_log_notifier.dart';
+import '../notifiers/scan_session_notifier.dart';
 import '../state/meal_log_state.dart';
+import '../state/scan_session_state.dart';
 
 // --- Data sources ---
 
@@ -119,6 +121,11 @@ final getSignedImageUrlUseCaseProvider = Provider(
 final mealLogProvider = NotifierProvider<MealLogNotifier, MealLogState>(
   MealLogNotifier.new,
 );
+
+final scanSessionProvider =
+    NotifierProvider<ScanSessionNotifier, ScanSessionState>(
+      ScanSessionNotifier.new,
+    );
 
 final getDailyNutritionUseCaseProvider = Provider(
   (ref) => GetDailyNutritionUseCase(ref.watch(mealLogRepositoryProvider)),

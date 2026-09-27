@@ -87,7 +87,7 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
   }
 
   void _analyze() {
-    final notifier = ref.read(mealLogProvider.notifier);
+    final notifier = ref.read(scanSessionProvider.notifier);
     switch (widget.args) {
       case ScanResultArgs(:final imagePath?, :final mealType):
         notifier.analyzeCapturedPhoto(imagePath, mealType: mealType);
@@ -107,8 +107,8 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
   /// effort: this makes a real network call (deleting the orphaned upload),
   /// and a failure there must never block the user from leaving.
   Future<void> _cleanupInFlight() async {
-    final notifier = ref.read(mealLogProvider.notifier);
-    final current = ref.read(mealLogProvider);
+    final notifier = ref.read(scanSessionProvider.notifier);
+    final current = ref.read(scanSessionProvider);
     try {
       if (current.pendingAnalysis != null) {
         await notifier.discardPendingMeal();
@@ -129,15 +129,15 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
   }
 
   Future<void> _confirm() async {
-    await ref.read(mealLogProvider.notifier).confirmMealLog();
-    if (mounted) context.pop(true);
+    final saved = await ref.read(scanSessionProvider.notifier).confirm();
+    if (mounted) context.pop(saved);
   }
 
   void _retry() => _analyze();
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(mealLogProvider);
+    final state = ref.watch(scanSessionProvider);
     final pending = state.pendingAnalysis;
 
     final phase = pending != null
@@ -329,7 +329,8 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
         return SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: () => ref.read(mealLogProvider.notifier).stopAnalyzing(),
+            onPressed: () =>
+                ref.read(scanSessionProvider.notifier).stopAnalyzing(),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primary,
               padding: const EdgeInsets.symmetric(vertical: 14),

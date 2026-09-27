@@ -17,7 +17,7 @@ sealed class MealAnalysisStreamEvent {
 
 /// Emitted by [AnalyzeMealPhotoUseCase.call] as soon as the photo has been
 /// uploaded, before any analysis events arrive — lets callers stop the
-/// stream early (see [MealLogNotifier.stopAnalyzing]) while still knowing
+/// stream early (see [ScanSessionNotifier.stopAnalyzing]) while still knowing
 /// where the photo landed.
 class UploadCompleted extends MealAnalysisStreamEvent {
   const UploadCompleted(this.storagePath);
