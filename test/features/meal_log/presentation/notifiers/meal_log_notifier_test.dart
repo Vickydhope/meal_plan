@@ -238,6 +238,57 @@ void main() {
     expect(container.read(mealLogProvider).error, isNotNull);
   });
 
+  test('a save while a fetch is in flight survives the fetch', () async {
+    final saved = _log('log-1');
+    final staleFetch = Completer<List<MealLog>>();
+    var fetches = 0;
+    when(
+      () => mealLogs.fetchLogsForDate(
+        userId: any(named: 'userId'),
+        date: any(named: 'date'),
+      ),
+    ).thenAnswer(
+      (_) => ++fetches == 1 ? staleFetch.future : Future.value([saved]),
+    );
+    when(
+      () => mealLogs.saveMealLog(
+        userId: any(named: 'userId'),
+        analysis: any(named: 'analysis'),
+      ),
+    ).thenAnswer((_) async => saved);
+    final notifier = container.read(mealLogProvider.notifier);
+
+    final fetch = notifier.fetchLogsForSelectedDate();
+    await notifier.relogMeal(saved);
+    staleFetch.complete([]); // Read before the save landed.
+    await fetch;
+
+    final state = container.read(mealLogProvider);
+    expect(state.logs, [saved]);
+    expect(state.isLoadingLogs, isFalse);
+  });
+
+  test("a fetch for a day that's no longer selected is ignored", () async {
+    final todayFetch = Completer<List<MealLog>>();
+    var fetches = 0;
+    when(
+      () => mealLogs.fetchLogsForDate(
+        userId: any(named: 'userId'),
+        date: any(named: 'date'),
+      ),
+    ).thenAnswer(
+      (_) => ++fetches == 1 ? todayFetch.future : Future.value(<MealLog>[]),
+    );
+    final notifier = container.read(mealLogProvider.notifier);
+
+    final stale = notifier.fetchLogsForSelectedDate();
+    await notifier.selectDate(DateTime.now().subtract(const Duration(days: 1)));
+    todayFetch.complete([_log('today')]);
+    await stale;
+
+    expect(container.read(mealLogProvider).logs, isEmpty);
+  });
+
   test('deleteMealLog puts the log back and shows a safe message when the '
       'backend call fails', () async {
     final log = _log('log-1');

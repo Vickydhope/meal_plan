@@ -19,6 +19,20 @@ import '../state/meal_log_state.dart';
 /// other infra package directly — everything it does goes through the
 /// domain layer.
 class MealLogNotifier extends Notifier<MealLogState> {
+  /// Bumped by every fetch, so an older one (e.g. for a day since switched
+  /// away from) knows not to apply its result.
+  int _fetchId = 0;
+
+  /// Bumped by every change to [MealLogState.logs], so a fetch can tell a
+  /// save/delete landed while it was in flight.
+  int _logEdits = 0;
+
+  @override
+  set state(MealLogState value) {
+    if (!identical(value.logs, stateOrNull?.logs)) _logEdits++;
+    super.state = value;
+  }
+
   @override
   MealLogState build() {
     final today = DateTime.now();
@@ -54,12 +68,21 @@ class MealLogNotifier extends Notifier<MealLogState> {
     final day = state.selectedDate ?? DateTime.now();
     if (userId == null) return;
 
+    final id = ++_fetchId;
     state = state.copyWith(isLoadingLogs: true);
-    final logs = await ref.read(fetchMealLogsUseCaseProvider)(
-      userId: userId,
-      date: day,
-    );
-    state = state.copyWith(logs: logs, isLoadingLogs: false);
+    while (true) {
+      final edits = _logEdits;
+      final logs = await ref.read(fetchMealLogsUseCaseProvider)(
+        userId: userId,
+        date: day,
+      );
+      if (id != _fetchId) return; // A newer fetch owns the list now.
+      // A save/delete during the fetch is already in the backend, but this
+      // result may predate it — fetch again rather than overwrite it.
+      if (edits != _logEdits) continue;
+      state = state.copyWith(logs: logs, isLoadingLogs: false);
+      return;
+    }
   }
 
   /// Saves a reviewed [pending] meal (see [ScanSessionNotifier.confirm]).
