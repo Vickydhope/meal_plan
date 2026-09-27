@@ -29,24 +29,6 @@ class MealLogRemoteDataSource {
     return (rows as List).cast<Map<String, dynamic>>();
   }
 
-  Future<List<Map<String, dynamic>>> fetchLogsPage({
-    required String userId,
-    DateTime? before,
-    required int limit,
-  }) async {
-    var query = _client
-        .from('meal_logs')
-        .select()
-        .eq('user_id', userId)
-        .isFilter('deleted_at', null);
-    if (before != null) {
-      query = query.lt('created_at', before.toUtc().toIso8601String());
-    }
-
-    final rows = await query.order('created_at', ascending: false).limit(limit);
-    return (rows as List).cast<Map<String, dynamic>>();
-  }
-
   Future<Map<String, dynamic>> insertMealLog(Map<String, dynamic> payload) {
     return _client.from('meal_logs').insert(payload).select().single();
   }

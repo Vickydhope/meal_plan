@@ -58,7 +58,7 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   /// Turns Supabase's raw auth error codes into messages safe to show a
-  /// user, instead of leaking SDK/HTTP internals (see plan.md 3.1).
+  /// user, instead of leaking SDK/HTTP internals.
   String _mapAuthError(AuthApiException err) {
     switch (err.code) {
       case 'user_already_exists':
