@@ -1,0 +1,5 @@
+# Launcher icon / splash raster variants: no knowledge for the graph.
+android/app/src/*/res/
+ios/Runner/Assets.xcassets/
+assets/splash/
+assets/logos/
