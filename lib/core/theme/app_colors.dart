@@ -20,7 +20,7 @@ abstract final class AppColors {
   static const accent = Color(0xFFE8823A);
 
   // Surfaces
-  /// App-wide scaffold background — warm off-white/cream.
+  /// App-wide scaffold background — cool, faintly green light grey.
   static const background = Color(0xFFEDF1EE);
   static const surface = Colors.white;
   static const surfaceMuted = Color(0xFFE0E3E0);
@@ -50,7 +50,7 @@ abstract final class AppColors {
   /// outline.
   static const borderSelected = primary;
 
-  // Macro indicator colors (protein / carbs / fat / fiber)
+  // Macro indicat  or colors (protein / carbs / fat / fiber)
   static const protein = Color(0xFF4E8FD1);
   static const carbs = Color(0xFFE0973F);
   static const fat = Color(0xFF6FA35A);
