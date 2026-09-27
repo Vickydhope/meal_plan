@@ -15,7 +15,6 @@ Single source of truth for pending work. (Replaces the old `plan.md` production-
 - [ ] Tests for remaining repository impls: `ImageRepositoryImpl`, profile/avatar/auth/ask-ai
 - [ ] Health meal write-back gaps: backfill existing history when the switch is turned on; sync edits/deletes made while it was off; per-device only (meals logged on a tablet don't reach the phone's Health)
 - [ ] Backfill `daily_activity` history before today
-- [ ] Refresh activity on app resume (currently load + pull-to-refresh only)
 
 ## Done
 
@@ -48,7 +47,7 @@ Single source of truth for pending work. (Replaces the old `plan.md` production-
 - [x] ~~Fitness: `FitnessRepository` + `health` integration, UI + budget, tests~~ (2026-09-24, not yet device-tested — see Active)
   - `lib/features/fitness/`: `DailyActivity`, `FitnessRepository`, `SetActivitySyncUseCase` (requests permissions before saving the opt-in, so a denial leaves it off), `GetTodayActivityUseCase` (null when off), `HealthFitnessRepositoryImpl`. Active energy is read with an interval (statistics) query so watch + phone sources aren't double-counted
   - Opt-in is a Settings switch "Add exercise calories to budget", off by default, saved with `shared_preferences` (HealthKit doesn't say whether read access was granted, so it can't be derived from permissions). One switch covers both reading activity and adding it to the budget; split it if product wants activity shown without adjusting the budget
-  - `HomeScreen` (today only): calorie card target = `dailyTarget + active kcal`, steps/kcal line under the card, pull-to-refresh reloads it. Macro targets stay on the base target. No refresh on app resume yet
+  - `HomeScreen` (today only): calorie card target = `dailyTarget + active kcal`, steps/kcal line under the card, pull-to-refresh reloads it. Macro targets stay on the base target. Refreshes on app resume since 2026-09-27
   - Native: Android `minSdk` 24→26, `MainActivity` → `FlutterFragmentActivity`, Health Connect read permissions/queries/rationale intent/permission-usage alias; iOS `NSHealthShareUsageDescription` + `Runner.entitlements` (HealthKit) on all 9 Runner build configs
   - `HealthStoreUnavailableException`/`HealthPermissionDeniedException` added to `AppException`; 11 tests in `test/features/fitness/`
 - [x] ~~Fix exercise double-counting + sync weight from Health~~ (2026-09-25, not yet device-tested)

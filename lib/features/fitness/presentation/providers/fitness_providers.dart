@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:health/health.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -116,9 +117,11 @@ final activitySyncEnabledProvider = FutureProvider<bool>(
 
 /// Today's activity for the account (from this device's health store if it
 /// syncs, otherwise whatever another device uploaded), or `null`.
-/// Refreshed by invalidating (pull-to-refresh on `HomeScreen`, toggling
-/// sync in `SettingsScreen`) — no background sync.
+/// Refreshed on app resume and by invalidating (pull-to-refresh on
+/// `HomeScreen`, toggling sync in `SettingsScreen`) — no background sync.
 final todayActivityProvider = FutureProvider<DailyActivity?>((ref) async {
+  final listener = AppLifecycleListener(onResume: ref.invalidateSelf);
+  ref.onDispose(listener.dispose);
   final userId = ref.watch(authRepositoryProvider).currentUserId;
   if (userId == null) return null;
   final profile = await ref.watch(currentUserProfileProvider.future);
