@@ -57,6 +57,30 @@ class SupabaseAuthRepository implements AuthRepository {
     }
   }
 
+  /// The `delete-account` function removes the user's Storage files and
+  /// auth user (cascading to every table). The account is gone by the
+  /// time we sign out, so a sign-out error (the local session is cleared
+  /// before gotrue calls the server) isn't worth reporting.
+  @override
+  Future<void> deleteAccount() async {
+    const fallback = "Couldn't delete your account. Try again.";
+    try {
+      await _client.functions.invoke('delete-account');
+    } on FunctionException catch (err) {
+      final details = err.details;
+      throw AuthFailureException(
+        details is Map && details['error'] is String
+            ? details['error'] as String
+            : fallback,
+      );
+    } catch (_) {
+      throw const AuthFailureException(fallback);
+    }
+    try {
+      await _client.auth.signOut();
+    } catch (_) {}
+  }
+
   /// Turns Supabase's raw auth error codes into messages safe to show a
   /// user, instead of leaking SDK/HTTP internals.
   String _mapAuthError(AuthApiException err) {

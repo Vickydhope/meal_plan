@@ -108,14 +108,18 @@ class AuthFormCard extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     error!,
-                    style: AppTypography.bodyMedium.copyWith(color: AppColors.error),
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: AppColors.error,
+                    ),
                   ),
                 ],
                 if (info != null) ...[
                   const SizedBox(height: 16),
                   Text(
                     info!,
-                    style: AppTypography.bodyMedium.copyWith(color: AppColors.success),
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: AppColors.success,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 24),

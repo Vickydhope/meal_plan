@@ -8,14 +8,19 @@ class _MockClient extends Mock implements SupabaseClient {}
 
 class _MockAuth extends Mock implements GoTrueClient {}
 
+class _MockFunctions extends Mock implements FunctionsClient {}
+
 void main() {
   late _MockAuth auth;
+  late _MockFunctions functions;
   late SupabaseAuthRepository repository;
 
   setUp(() {
     final client = _MockClient();
     auth = _MockAuth();
+    functions = _MockFunctions();
     when(() => client.auth).thenReturn(auth);
+    when(() => client.functions).thenReturn(functions);
     repository = SupabaseAuthRepository(client);
   });
 
@@ -62,5 +67,33 @@ void main() {
   test('non-API errors never leak their text', () {
     signInThrows(Exception('SocketException: host lookup failed'));
     expect(signIn(), failsWith('Sign in failed. Try again.'));
+  });
+
+  test('deleteAccount calls delete-account, then signs out', () async {
+    when(() => functions.invoke('delete-account'))
+        .thenAnswer((_) async => FunctionResponse(status: 200));
+    when(() => auth.signOut()).thenThrow(Exception('offline'));
+
+    await repository.deleteAccount();
+
+    verifyInOrder([
+      () => functions.invoke('delete-account'),
+      () => auth.signOut(),
+    ]);
+  });
+
+  test('deleteAccount failure keeps the session and shows a safe message', () {
+    when(() => functions.invoke('delete-account')).thenThrow(
+      const FunctionException(
+        status: 500,
+        details: {'error': "Couldn't delete your account. Please try again."},
+      ),
+    );
+
+    expect(
+      repository.deleteAccount(),
+      failsWith("Couldn't delete your account. Please try again."),
+    );
+    verifyNever(() => auth.signOut());
   });
 }

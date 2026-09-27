@@ -138,6 +138,13 @@ class SettingsScreen extends ConsumerWidget {
                   labelColor: AppColors.error,
                   onTap: () => ref.read(authRepositoryProvider).signOut(),
                 ),
+                _SettingsRow(
+                  icon: Icons.delete_forever_outlined,
+                  label: 'Delete account',
+                  iconColor: AppColors.error,
+                  labelColor: AppColors.error,
+                  onTap: () => _deleteAccount(context),
+                ),
               ],
             ),
           ],
@@ -164,6 +171,57 @@ class SettingsScreen extends ConsumerWidget {
       ..invalidate(activitySyncEnabledProvider)
       ..invalidate(todayActivityProvider)
       ..invalidate(healthWeightSyncProvider);
+  }
+
+  /// Confirms, then deletes the account. Signing out afterwards sends the
+  /// router to login, so there's nothing to navigate here.
+  Future<void> _deleteAccount(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Delete account?', style: AppTypography.headlineMedium),
+        content: Text(
+          'This permanently deletes your account, meals, photos, profile '
+          'and progress. It can\'t be undone. Anything already saved to '
+          'Apple Health or Health Connect stays there.',
+          style: AppTypography.bodyMedium,
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+            ),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.onScrim,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final container = ProviderScope.containerOf(context);
+    try {
+      // Reminders are scheduled on the device; stop them before the
+      // account they remind about is gone.
+      await container.read(reminderRepositoryProvider).setEnabled(false);
+      await container.read(authRepositoryProvider).deleteAccount();
+    } catch (err) {
+      if (context.mounted) showAppSnackBar(context, userMessageFor(err));
+    }
   }
 
   /// Only meals confirmed or edited from now on are saved; existing

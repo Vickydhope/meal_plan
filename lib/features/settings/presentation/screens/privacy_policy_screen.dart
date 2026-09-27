@@ -61,9 +61,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
     (
       'Keeping and deleting your data',
       'Your data is kept while you have an account. Meal photos that are '
-          'never saved to a meal are removed automatically. To delete your '
-          'account and all data linked to it, contact us at the developer '
-          'email on the app\'s store listing.',
+          'never saved to a meal are removed automatically. You can delete your '
+          'account at any time in Settings → Delete account, which '
+          'permanently removes your account and all data linked to it.',
     ),
     ('Children', 'The app is not intended for children under 13.'),
     (

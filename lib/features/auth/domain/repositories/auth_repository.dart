@@ -16,12 +16,23 @@ abstract class AuthRepository {
   /// `AuthFailureException` (with a message safe to show the user) on
   /// failure — e.g. the email is already registered, or the password is
   /// too weak.
-  Future<void> signUpWithEmail({required String email, required String password});
+  Future<void> signUpWithEmail({
+    required String email,
+    required String password,
+  });
 
   /// Signs in an existing account. Throws `AuthFailureException` on
   /// failure, e.g. wrong credentials.
-  Future<void> signInWithEmail({required String email, required String password});
+  Future<void> signInWithEmail({
+    required String email,
+    required String password,
+  });
 
   /// Signs the current user out.
   Future<void> signOut();
+
+  /// Permanently deletes the current user's account and all their data,
+  /// then signs out on this device. Throws `AuthFailureException` on
+  /// failure.
+  Future<void> deleteAccount();
 }
