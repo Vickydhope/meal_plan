@@ -568,11 +568,15 @@ Future<void> _deleteMealWithUndo(
   MealLog log,
 ) async {
   final notifier = ref.read(mealLogProvider.notifier);
+  // Grabbed before the await: the row (and its context) is often gone
+  // by then — rows aren't keyed, so deleting a section's last one
+  // disposes it.
+  final messenger = ScaffoldMessenger.of(context);
   final index = await notifier.deleteMealLog(log);
-  if (index == null || !context.mounted) return;
+  if (index == null || !messenger.mounted) return;
 
   showUndoSnackBar(
-    context,
+    messenger,
     message: 'Removed ${log.mealName}',
     onUndo: () => notifier.restoreMealLog(index, log),
   );

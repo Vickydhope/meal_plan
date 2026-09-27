@@ -59,7 +59,7 @@ void _removeWithUndo(BuildContext context, WidgetRef ref, int index) {
   }
 
   showUndoSnackBar(
-    context,
+    ScaffoldMessenger.of(context),
     message: 'Removed ${removed.foodName}',
     onUndo: () => notifier.restoreItem(index, removed),
   );

@@ -14,11 +14,10 @@ void showAppSnackBar(BuildContext context, String message) {
 /// closing (e.g. to commit a deferred action once the undo window has
 /// passed without [onUndo] having been tapped).
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showUndoSnackBar(
-  BuildContext context, {
+  ScaffoldMessengerState messenger, {
   required String message,
   required VoidCallback onUndo,
 }) {
-  final messenger = ScaffoldMessenger.of(context);
   messenger.hideCurrentSnackBar();
   return messenger.showSnackBar(
     SnackBar(
