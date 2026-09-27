@@ -21,9 +21,9 @@ abstract final class AppColors {
 
   // Surfaces
   /// App-wide scaffold background — warm off-white/cream.
-  static const background = Color(0xFFFAF8F6);
+  static const background = Color(0xFFEDF1EE);
   static const surface = Colors.white;
-  static const surfaceMuted = Color(0xFFEDEDED);
+  static const surfaceMuted = Color(0xFFE0E3E0);
 
   /// Highlight band swept across [ShimmerBox] placeholders — near-white so
   /// it reads as a sheen against [surfaceMuted] rather than a new surface.
