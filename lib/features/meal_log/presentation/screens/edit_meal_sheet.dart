@@ -26,7 +26,7 @@ Future<void> showEditMealSheet(BuildContext context, MealLog log) {
     // bottomNavigationBar slot) — the sheet can render partly hidden
     // behind the tab bar. Pinning to the root navigator puts the sheet
     // above the whole shell instead, same as the Plan tab's edit sheets
-    // (see PlanScreen._showEditSheet).
+    // (see NutritionGoalsScreen._showEditSheet).
     useRootNavigator: true,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,

@@ -15,6 +15,7 @@ import '../../../fitness/domain/entities/daily_activity.dart';
 import '../../../fitness/presentation/providers/fitness_providers.dart';
 import '../../../hydration/presentation/providers/water_providers.dart';
 import '../../../hydration/presentation/widgets/water_card.dart';
+import '../../../meal_suggestions/presentation/providers/meal_suggestion_providers.dart';
 import '../../../notifications/presentation/providers/notification_providers.dart';
 import '../../../profile/domain/entities/calorie_mode.dart';
 import '../../../profile/domain/utils/macro_split.dart';
@@ -201,6 +202,12 @@ class HomeScreen extends ConsumerWidget {
                                   ?.calorieMode ==
                               CalorieMode.dynamic,
                         ),
+                      if (isToday)
+                        _MealIdeasPrompt(
+                          caloriesLeft:
+                              (todayBudget ?? state.dailyTarget) -
+                              state.totalCaloriesToday,
+                        ),
                       WaterCard(
                         key: ValueKey(selectedDay),
                         day: selectedDay,
@@ -295,6 +302,82 @@ class _ActivityStats extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Below this, a "get meal ideas" nudge isn't worth the space.
+const _ideasPromptMinCalories = 300;
+
+/// "650 kcal left · Get meal ideas" under today's calorie card: starts
+/// generating (unless ideas for about this much are already there) and
+/// switches to the Plan tab, where they show.
+class _MealIdeasPrompt extends ConsumerWidget {
+  const _MealIdeasPrompt({required this.caloriesLeft});
+
+  final int caloriesLeft;
+
+  void _open(BuildContext context, WidgetRef ref) {
+    final ideas = ref.read(mealIdeasProvider);
+    final plannedFor = ideas.value?.remaining?.calories;
+    final stale = plannedFor == null || (plannedFor - caloriesLeft).abs() > 100;
+    if (!ideas.isLoading && stale) {
+      ref.read(mealIdeasProvider.notifier).generate();
+    }
+    context.goNamed(AppRoute.plan.name);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (caloriesLeft < _ideasPromptMinCalories) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      // Its own Material rather than an Ink decoration, so the background
+      // moves with the row when the list relays out (see the Plan tab).
+      child: Material(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _open(context, ref),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                const Icon(
+                  LucideIcons.sparkles,
+                  size: 16,
+                  color: AppColors.accent,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: '$caloriesLeft kcal left · '),
+                        TextSpan(
+                          text: 'Get meal ideas',
+                          style: AppTypography.bodySmallMedium.copyWith(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: AppColors.textTertiary,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -49,6 +49,16 @@ class SettingsScreen extends ConsumerWidget {
                   },
                 ),
                 _SettingsRow(
+                  icon: Icons.track_changes_outlined,
+                  label: 'Nutrition goals',
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: AppColors.textTertiary,
+                  ),
+                  onTap: () => context.pushNamed(AppRoute.nutritionGoals.name),
+                ),
+                _SettingsRow(
                   icon: Icons.email_outlined,
                   label: 'Email',
                   trailing: Text(

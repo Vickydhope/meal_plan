@@ -9,7 +9,7 @@ import '../repositories/fitness_repository.dart';
 ///
 /// Only readings taken *after* the plan was last saved are applied
 /// (`onboardingCompletedAt` is re-stamped on every plan save, including
-/// this one), so a manual edit in `PlanScreen` isn't overwritten by an
+/// this one), so a manual edit in `NutritionGoalsScreen` isn't overwritten by an
 /// older scale reading, and the same reading is never applied twice.
 class SyncWeightFromHealthUseCase {
   const SyncWeightFromHealthUseCase({

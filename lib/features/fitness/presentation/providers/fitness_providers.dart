@@ -128,9 +128,10 @@ final todayActivityProvider = FutureProvider<DailyActivity?>((ref) async {
   );
 });
 
-/// Today's calorie budget, as `HomeScreen`, `PlanScreen` and Ask AI present
-/// it: the plan's target, or — on the dynamic calorie mode with activity
-/// synced today — the sedentary base plus active energy burned (see
+/// Today's calorie budget, as `HomeScreen`, the Plan tab,
+/// `NutritionGoalsScreen` and Ask AI present it: the plan's target, or — on
+/// the dynamic calorie mode with activity synced today — the sedentary base
+/// plus active energy burned (see
 /// `CalculateActivityAdjustedTargetUseCase`). Dynamic with nothing synced
 /// yet falls back to the plan target. `null` until the profile loads.
 final todayCalorieBudgetProvider = Provider<int?>((ref) {

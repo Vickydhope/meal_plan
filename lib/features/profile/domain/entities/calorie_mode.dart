@@ -1,4 +1,4 @@
-/// How the daily calorie budget is set — chosen on `PlanScreen`.
+/// How the daily calorie budget is set — chosen on `NutritionGoalsScreen`.
 enum CalorieMode {
   /// The plan target from the self-reported activity level, every day.
   fixed,

@@ -105,7 +105,7 @@ lib/
 
 **Adding a new feature**: mirror the `meal_log` structure — domain entities/repositories/usecases first (pure Dart), then data DTOs/datasources/repository impls, then presentation state/notifier/providers/screens. Keep `domain` free of Flutter and Supabase imports so use cases stay unit-testable without mocks for infra.
 
-`PlanScreen` is a stub ("Meal plans coming soon").
+`PlanScreen` (the Plan tab) shows AI meal ideas for the rest of today (`lib/features/meal_suggestions/`, backed by the `suggest-meals` edge function) plus a summary of the user's targets; the targets themselves are edited on `NutritionGoalsScreen` (pushed from the Plan tab or Settings).
 
 ## Config
 

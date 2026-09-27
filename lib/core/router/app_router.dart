@@ -10,6 +10,7 @@ import '../../features/meal_log/domain/entities/meal_type.dart';
 import '../../features/meal_log/presentation/screens/barcode_scan_screen.dart';
 import '../../features/meal_log/presentation/screens/camera_scan_screen.dart';
 import '../../features/meal_log/presentation/screens/home_screen.dart';
+import '../../features/meal_log/presentation/screens/nutrition_goals_screen.dart';
 import '../../features/meal_log/presentation/screens/plan_screen.dart';
 import '../../features/meal_log/presentation/screens/scan_result_screen.dart';
 import '../../features/meal_log/presentation/screens/trends_screen.dart';
@@ -164,6 +165,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoute.profile.name,
         path: AppRoute.profile.path,
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        name: AppRoute.nutritionGoals.name,
+        path: AppRoute.nutritionGoals.path,
+        builder: (context, state) => const NutritionGoalsScreen(),
       ),
       GoRoute(
         name: AppRoute.trends.name,

@@ -8,6 +8,7 @@ import '../../../../core/router/app_route.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
+import '../../../../shared/widgets/shimmer_box.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../meal_log/presentation/screens/scan_result_screen.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
@@ -53,18 +54,9 @@ class MealIdeasSection extends ConsumerWidget {
         _DietNotesRow(notes: dietNotes),
         const SizedBox(height: 8),
         switch (ideas) {
-          AsyncLoading() => const _Status(
-            child: Row(
-              children: [
-                SizedBox.square(
-                  dimension: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 12),
-                Expanded(child: Text('Planning your meals…')),
-              ],
-            ),
-          ),
+          // Checked via isLoading, not an AsyncLoading() pattern: a refresh
+          // (copyWithPrevious) keeps the previous AsyncData, flagged loading.
+          _ when ideas.isLoading => const _IdeasShimmer(),
           AsyncError(:final error) => _Prompt(
             message: userMessageFor(error),
             action: 'Try again',
@@ -84,7 +76,7 @@ class MealIdeasSection extends ConsumerWidget {
           ),
           AsyncData(value: MealIdeas(remaining: _?, :final meals))
               when meals.isEmpty =>
-            _Prompt(
+            _Prompt (
               message: 'All caught up with those ideas.',
               action: 'New ideas',
               onPressed: notifier.generate,
@@ -126,7 +118,7 @@ class _DietNotesRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       onTap: () => showModalBottomSheet<void>(
         context: context,
-        // Above AppShell's tab bar — see PlanScreen._showEditSheet.
+        // Above AppShell's tab bar — see showEditMealSheet.
         useRootNavigator: true,
         isScrollControlled: true,
         backgroundColor: AppColors.surface,
@@ -138,7 +130,7 @@ class _DietNotesRow extends StatelessWidget {
           children: [
             const Icon(
               LucideIcons.salad,
-              size: 14,
+              size: 20,
               color: AppColors.textSecondary,
             ),
             const SizedBox(width: 6),
@@ -306,6 +298,59 @@ class _Prompt extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Placeholder while ideas are generated: suggestion-card-shaped shimmer,
+/// so the layout doesn't jump when they land.
+class _IdeasShimmer extends StatelessWidget {
+  const _IdeasShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Planning your meals…',
+          style: AppTypography.caption12.copyWith(
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (var i = 0; i < 2; i++) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    ShimmerBox(width: 60, height: 10),
+                    Spacer(),
+                    ShimmerBox(width: 56, height: 12),
+                  ],
+                ),
+                SizedBox(height: 10),
+                ShimmerBox(width: 160, height: 16),
+                SizedBox(height: 8),
+                ShimmerBox(height: 12),
+                SizedBox(height: 6),
+                ShimmerBox(width: 200, height: 12),
+                SizedBox(height: 12),
+                ShimmerBox(width: 140, height: 10),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ],
     );
   }
 }
