@@ -5,8 +5,8 @@ Single source of truth for pending work. (Replaces the old `plan.md` production-
 ## Active
 
 - [ ] **Buy a domain** - blocks custom SMTP (sending domain needs SPF/DKIM, e.g. Resend), the public privacy-policy URL and the account-deletion web link for Play; all three can live on it. Stopgap for a few testers: Gmail SMTP with an app password (`smtp.gmail.com:587`)
-- [ ] **Prod Auth settings for password reset + 8-char minimum** (dashboard, all under Authentication):
-  - URL Configuration → Redirect URLs: add `com.doops.mealplan://reset-password` (without it the reset email links to the Site URL instead of the app)
+- [ ] **Prod Auth settings for password reset + 8-char minimum** (dashboard, all under Authentication; deferred, forgot-password code is done):
+  - URL Configuration → Redirect URLs: add `com.doops.mealplan://**`, and change Site URL from the default `http://localhost:3000` (e.g. to `com.doops.mealplan://`). Seen 2026-09-28: the app requests the right redirect, but prod isn't allowing it, so reset emails fall back to the Site URL and open `localhost:3000` (confirmed in prod edge logs). No app change needed; request a new email after saving, since the redirect is baked into each email
   - Sign In / Providers → Email → Minimum password length: 8 (the app enforces 8 on sign up/reset, but only the server setting stops direct API calls)
   - Custom SMTP (Emails → SMTP Settings): Supabase's built-in email only delivers to your own org's team members and is heavily rate-limited. **Also blocks sign-up**: prod has email confirmation on (`/auth/v1/settings` → `mailer_autoconfirm: false`, checked 2026-09-28), so new users can't log in until they click a confirmation email they won't receive. Either set up SMTP or turn off "Confirm email" (Sign In / Providers → Email). As of 2026-09-28 prod has 1 user (confirmed), so nobody is stuck yet
   - Then test on a device: Forgot password → email → link opens the app on "Choose a new password"
