@@ -7,11 +7,11 @@ Single source of truth for pending work. (Replaces the old `plan.md` production-
 - [ ] **Try Health features on real devices** (activity + weight sync, meal write-back: confirm → appears in Health, edit → replaced, delete → gone, undo → back) - code is done and dev builds for Android and iOS succeed, but it hasn't run on a device. Check: Health Connect permission sheet + "install Health Connect" path on Android; on iOS, confirm HealthKit shows up under Signing & Capabilities in Xcode (entitlements file is wired via `CODE_SIGN_ENTITLEMENTS`, but the App ID/provisioning profile needs HealthKit enabled) and the Health permission sheet appears
 - [ ] **Account-deletion web link** for the Play listing (Play wants a way to request deletion outside the app too)
 - [ ] **Host the privacy policy at a public URL** for the Play/App Store listings (the in-app screen at `/privacy-policy` covers Health Connect), and review its wording - it points to "the developer email on the app's store listing" for questions
-- [ ] **Enable "leaked password protection"** in Supabase Auth settings on prod (flagged by the security advisor; dashboard toggle)
 - [ ] **Set up hosted staging Supabase project** - local/prod split is done (flavors + `dart_defines/`), a staging project for QA is not
 
 ## Someday
 
+- [ ] Leaked password protection (Authentication → Sign In / Providers → Email → "Prevent use of leaked passwords") - needs the Supabase Pro plan; org is on Free (checked 2026-09-28). Advisor warning stays until then
 - [ ] Apple/Google sign-in as extra auth providers (email/password account model already supports it)
 - [ ] Health meal write-back gaps: backfill existing history when the switch is turned on; sync edits/deletes made while it was off; per-device only (meals logged on a tablet don't reach the phone's Health)
 - [ ] Backfill `daily_activity` history before today
