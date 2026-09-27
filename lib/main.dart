@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/sentry_config.dart';
 import 'core/config/supabase_config.dart';
 import 'core/error/sentry_provider_observer.dart';
-import 'core/router/app_router.dart';
+import 'app/router/app_router.dart';
 import 'core/theme/app_colors.dart';
 
 Future<void> main() async {

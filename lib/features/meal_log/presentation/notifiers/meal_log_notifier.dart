@@ -8,7 +8,6 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import '../../../../core/error/app_exception.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../fitness/presentation/providers/fitness_providers.dart';
-import '../../../notifications/presentation/providers/notification_providers.dart';
 import '../../domain/entities/meal_log.dart';
 import '../../domain/entities/pending_meal_analysis.dart';
 import '../providers/meal_log_providers.dart';
@@ -109,13 +108,11 @@ class MealLogNotifier extends Notifier<MealLogState> {
   }
 
   /// Runs [save], then does everything a newly logged meal needs: Health
-  /// mirror, notification badge, reminders, and the visible day's list.
+  /// mirror, [mealLogChangesProvider], and the visible day's list.
   Future<MealLog?> _saveMeal(Future<MealLog> Function() save) async {
     try {
       final newLog = await save();
       _mirrorToHealth(() => ref.read(writeMealToHealthUseCaseProvider)(newLog));
-      // The insert trigger just wrote a feed row; refresh the bell badge.
-      ref.invalidate(notificationsProvider);
       _mealsChanged();
       // createdAt (a DB row's created_at, parsed as UTC) and selectedDate (a
       // local-midnight DateTime) must be compared in the same zone — see the
@@ -133,8 +130,8 @@ class MealLogNotifier extends Notifier<MealLogState> {
     }
   }
 
-  /// Today's logged meal types decide which reminders are skipped.
-  void _mealsChanged() => ref.invalidate(reminderSyncProvider);
+  /// Lets downstream features (reminders, the notification feed) react.
+  void _mealsChanged() => ref.read(mealLogChangesProvider.notifier).state++;
 
   /// Fire-and-forget: the meal is already saved, and the health store is
   /// only a mirror, so a failure there is reported and surfaced via

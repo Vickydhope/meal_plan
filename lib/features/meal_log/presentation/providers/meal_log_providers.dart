@@ -118,6 +118,11 @@ final getSignedImageUrlUseCaseProvider = Provider(
 
 // --- Presentation state ---
 
+/// Bumped whenever a meal is saved, deleted, restored or edited. Features
+/// downstream of meal_log (reminders, the notification feed) watch it, so
+/// meal_log never has to reach into them.
+final mealLogChangesProvider = StateProvider<int>((ref) => 0);
+
 final mealLogProvider = NotifierProvider<MealLogNotifier, MealLogState>(
   MealLogNotifier.new,
 );

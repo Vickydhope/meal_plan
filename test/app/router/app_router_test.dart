@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:meal_plan/app/router/app_router.dart';
 import 'package:meal_plan/core/router/app_route.dart';
-import 'package:meal_plan/core/router/app_router.dart';
 import 'package:meal_plan/features/auth/presentation/providers/auth_providers.dart';
 import 'package:meal_plan/features/profile/presentation/providers/profile_providers.dart';
 

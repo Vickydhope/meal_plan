@@ -214,6 +214,8 @@ void main() {
     expect(await scan.confirm(), isTrue);
 
     expect(container.read(mealLogProvider).logs, [saved]);
+    // Downstream features (reminders, the feed) watch this.
+    expect(container.read(mealLogChangesProvider), 1);
     final state = container.read(scanSessionProvider);
     expect(state.pendingAnalysis, isNull);
     expect(state.isProcessing, isFalse);
