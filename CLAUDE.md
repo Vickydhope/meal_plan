@@ -73,7 +73,7 @@ lib/
     presentation/
       providers/auth_providers.dart  # authRepositoryProvider, authUserIdProvider
       widgets/auth_form_card.dart    # shared email/password form chrome
-      screens/                       # LoginScreen, SignupScreen — separate screens, not a mode toggle
+      screens/                       # LoginScreen, SignupScreen (separate screens, not a mode toggle), ForgotPasswordScreen, ResetPasswordScreen (router parks here while passwordRecoveryProvider is true)
   features/meal_log/
     domain/
       entities/                # MealLog, MealAnalysisItem, PendingMealAnalysis, MealType, MealAnalysisStreamEvent

@@ -6,10 +6,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/app_route.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../../meal_log/presentation/providers/meal_log_providers.dart';
 import '../../../meal_log/presentation/screens/camera_scan_screen.dart'
     show cameraFabHeroTag;
+import '../../../../shared/widgets/confirm_dialog.dart';
 
 /// Height of [AppShell]'s `bottomNavigationBar` (Material 3's default
 /// `BottomAppBar` height, since no explicit `height` is set below).
@@ -133,45 +133,15 @@ class AppShell extends ConsumerWidget {
     );
   }
 
-  /// Shows a themed confirm dialog before letting a Home-tab back-press
-  /// exit the app, matching the app's own rounded/pill button styling
-  /// (see the onboarding "Continue" button) rather than the stock
-  /// [AlertDialog] look.
+  /// Confirms before letting a Home-tab back-press exit the app.
   Future<void> _confirmExit(BuildContext context) async {
-    final shouldExit = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Exit app?', style: AppTypography.headlineMedium),
-        content: Text(
-          'Are you sure you want to exit Cravia?',
-          style: AppTypography.bodyMedium,
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.textSecondary,
-            ),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.onScrim,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
-              ),
-            ),
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
+    final shouldExit = await showConfirmDialog(
+      context,
+      title: 'Exit app?',
+      message: 'Are you sure you want to exit Cravia?',
+      confirmLabel: 'Exit',
     );
-    if (shouldExit ?? false) {
+    if (shouldExit) {
       await SystemNavigator.pop();
     }
   }

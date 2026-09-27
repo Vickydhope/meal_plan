@@ -48,4 +48,18 @@ void main() {
     expect(await validate(tester, password: ''), isFalse);
     expect(find.text('Enter your password'), findsOneWidget);
   });
+
+  testWidgets('password visibility toggles', (tester) async {
+    await validate(tester, password: 'secret');
+    bool obscured() =>
+        tester.widget<EditableText>(find.byType(EditableText).last).obscureText;
+
+    expect(obscured(), isTrue);
+    await tester.tap(find.byTooltip('Show password'));
+    await tester.pump();
+    expect(obscured(), isFalse);
+    await tester.tap(find.byTooltip('Hide password'));
+    await tester.pump();
+    expect(obscured(), isTrue);
+  });
 }

@@ -36,6 +36,16 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Password-reset links (SupabaseConfig.authRedirectUrl), read by
+                 supabase_flutter via app_links. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="${appUrlScheme}" android:host="reset-password"/>
+            </intent-filter>
+            <!-- Keep go_router from also routing those links as app paths. -->
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
             <!-- Health Connect's "why does this app need access" link -->
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>

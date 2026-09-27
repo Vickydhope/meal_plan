@@ -74,5 +74,19 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>password-reset</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Password-reset links; see SupabaseConfig.authRedirectUrl -->
+				<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+			</array>
+		</dict>
+	</array>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 </dict>
 </plist>

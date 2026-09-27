@@ -5,7 +5,9 @@ import '../../core/router/app_route.dart';
 import '../../features/app_shell/presentation/screens/app_shell.dart';
 import '../../features/ask_ai/presentation/screens/ask_ai_screen.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/reset_password_screen.dart';
 import '../../features/auth/presentation/screens/signup_screen.dart';
 import '../../features/meal_log/domain/entities/meal_type.dart';
 import '../../features/meal_log/presentation/screens/barcode_scan_screen.dart';
@@ -37,7 +39,8 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       final onAuthScreen =
           state.matchedLocation == AppRoute.login.path ||
-          state.matchedLocation == AppRoute.signup.path;
+          state.matchedLocation == AppRoute.signup.path ||
+          state.matchedLocation == AppRoute.forgotPassword.path;
 
       final userIdAsync = ref.read(authUserIdProvider);
       // Session restore hasn't emitted yet — not "signed out", so don't
@@ -50,6 +53,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       final userId = userIdAsync.valueOrNull;
       if (userId == null) {
         return onAuthScreen ? null : AppRoute.login.path;
+      }
+
+      // A password-reset link signed them in: new password first.
+      if (ref.read(passwordRecoveryProvider).valueOrNull ?? false) {
+        return state.matchedLocation == AppRoute.resetPassword.path
+            ? null
+            : AppRoute.resetPassword.path;
       }
 
       final profileAsync = ref.read(currentUserProfileProvider);
@@ -69,6 +79,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           }
           final atGateRoute =
               onAuthScreen ||
+              state.matchedLocation == AppRoute.resetPassword.path ||
               state.matchedLocation == AppRoute.onboarding.path ||
               state.matchedLocation == AppRoute.splash.path;
           return atGateRoute ? AppRoute.home.path : null;
@@ -85,6 +96,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoute.signup.name,
         path: AppRoute.signup.path,
         builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
+        name: AppRoute.forgotPassword.name,
+        path: AppRoute.forgotPassword.path,
+        builder: (context, state) =>
+            ForgotPasswordScreen(initialEmail: state.extra as String?),
+      ),
+      GoRoute(
+        name: AppRoute.resetPassword.name,
+        path: AppRoute.resetPassword.path,
+        builder: (context, state) => const ResetPasswordScreen(),
       ),
       GoRoute(
         name: AppRoute.onboarding.name,

@@ -43,10 +43,14 @@ android {
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
             resValue("string", "app_name", "[Dev]Cravia")
+            // Password-reset deep link. Lowercase: Android matches schemes
+            // case-sensitively. See SupabaseConfig.authRedirectUrl.
+            manifestPlaceholders["appUrlScheme"] = "com.doops.mealplan.dev"
         }
         create("prod") {
             dimension = "env"
             resValue("string", "app_name", "Cravia")
+            manifestPlaceholders["appUrlScheme"] = "com.doops.mealplan"
         }
     }
 

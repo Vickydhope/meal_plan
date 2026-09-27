@@ -17,3 +17,10 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 final authUserIdProvider = StreamProvider<String?>((ref) {
   return ref.watch(authRepositoryProvider).userIdChanges;
 });
+
+/// Whether the user arrived via a password-reset link and still has to
+/// choose a new password; the router keeps them on `ResetPasswordScreen`
+/// until then.
+final passwordRecoveryProvider = StreamProvider<bool>((ref) {
+  return ref.watch(authRepositoryProvider).passwordRecoveryChanges;
+});

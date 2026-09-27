@@ -65,11 +65,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       submitting: _submitting,
       error: _error,
       onSubmit: _submit,
-      footer: TextButton(
-        onPressed: _submitting
-            ? null
-            : () => context.goNamed(AppRoute.signup.name),
-        child: const Text("Don't have an account? Sign up"),
+      footer: Column(
+        children: [
+          TextButton(
+            onPressed: _submitting
+                ? null
+                : () => context.goNamed(
+                    AppRoute.forgotPassword.name,
+                    extra: _emailController.text.trim(),
+                  ),
+            child: const Text('Forgot password?'),
+          ),
+          TextButton(
+            onPressed: _submitting
+                ? null
+                : () => context.goNamed(AppRoute.signup.name),
+            child: const Text("Don't have an account? Sign up"),
+          ),
+        ],
       ),
     );
   }

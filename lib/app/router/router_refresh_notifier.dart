@@ -14,6 +14,7 @@ class RouterRefreshNotifier extends ChangeNotifier {
   RouterRefreshNotifier(Ref ref) {
     ref.listen(authUserIdProvider, (_, _) => notifyListeners());
     ref.listen(currentUserProfileProvider, (_, _) => notifyListeners());
+    ref.listen(passwordRecoveryProvider, (_, _) => notifyListeners());
   }
 }
 

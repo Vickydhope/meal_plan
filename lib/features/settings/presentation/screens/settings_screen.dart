@@ -7,6 +7,7 @@ import '../../../../core/router/app_route.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
+import '../../../../shared/widgets/confirm_dialog.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../fitness/presentation/providers/fitness_providers.dart';
 import '../../../notifications/presentation/providers/notification_providers.dart';
@@ -136,7 +137,7 @@ class SettingsScreen extends ConsumerWidget {
                   label: 'Log out',
                   iconColor: AppColors.error,
                   labelColor: AppColors.error,
-                  onTap: () => ref.read(authRepositoryProvider).signOut(),
+                  onTap: () => _logOut(context),
                 ),
                 _SettingsRow(
                   icon: Icons.delete_forever_outlined,
@@ -173,45 +174,31 @@ class SettingsScreen extends ConsumerWidget {
       ..invalidate(healthWeightSyncProvider);
   }
 
+  Future<void> _logOut(BuildContext context) async {
+    final container = ProviderScope.containerOf(context);
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Log out?',
+      message: "You'll need your email and password to log back in.",
+      confirmLabel: 'Log out',
+    );
+    if (confirmed) await container.read(authRepositoryProvider).signOut();
+  }
+
   /// Confirms, then deletes the account. Signing out afterwards sends the
   /// router to login, so there's nothing to navigate here.
   Future<void> _deleteAccount(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Delete account?', style: AppTypography.headlineMedium),
-        content: Text(
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Delete account?',
+      message:
           'This permanently deletes your account, meals, photos, profile '
           'and progress. It can\'t be undone. Anything already saved to '
           'Apple Health or Health Connect stays there.',
-          style: AppTypography.bodyMedium,
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.textSecondary,
-            ),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: AppColors.onScrim,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
-              ),
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Delete',
+      destructive: true,
     );
-    if (confirmed != true || !context.mounted) return;
+    if (!confirmed || !context.mounted) return;
 
     final container = ProviderScope.containerOf(context);
     try {

@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/config/supabase_config.dart';
 import '../../../../core/error/app_exception.dart';
 import '../../domain/repositories/auth_repository.dart';
 
@@ -57,6 +58,46 @@ class SupabaseAuthRepository implements AuthRepository {
     }
   }
 
+  @override
+  Future<void> sendPasswordReset(String email) async {
+    try {
+      await _client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: SupabaseConfig.authRedirectUrl,
+      );
+    } on AuthApiException catch (err) {
+      throw AuthFailureException(_mapAuthError(err));
+    } catch (err) {
+      throw AuthFailureException("Couldn't send the reset email. Try again.");
+    }
+  }
+
+  // onAuthStateChange replays past events to new listeners, so mapping
+  // every relevant event (not just the recovery one) keeps the latest
+  // value correct.
+  @override
+  Stream<bool> get passwordRecoveryChanges => _client.auth.onAuthStateChange
+      .map(
+        (state) => switch (state.event) {
+          AuthChangeEvent.passwordRecovery => true,
+          AuthChangeEvent.userUpdated || AuthChangeEvent.signedOut => false,
+          _ => null,
+        },
+      )
+      .where((recovering) => recovering != null)
+      .cast<bool>();
+
+  @override
+  Future<void> updatePassword(String password) async {
+    try {
+      await _client.auth.updateUser(UserAttributes(password: password));
+    } on AuthApiException catch (err) {
+      throw AuthFailureException(_mapAuthError(err));
+    } catch (err) {
+      throw AuthFailureException("Couldn't update your password. Try again.");
+    }
+  }
+
   /// The `delete-account` function removes the user's Storage files and
   /// auth user (cascading to every table). The account is gone by the
   /// time we sign out, so a sign-out error (the local session is cleared
@@ -92,6 +133,8 @@ class SupabaseAuthRepository implements AuthRepository {
         return 'Incorrect email or password.';
       case 'weak_password':
         return 'Password is too weak — use at least 8 characters.';
+      case 'same_password':
+        return 'Choose a password different from your current one.';
       case 'email_not_confirmed':
         return 'Please confirm your email before logging in.';
       case 'over_email_send_rate_limit':

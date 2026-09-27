@@ -3,18 +3,19 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 
-/// Shared email/password form chrome for [LoginScreen]/[SignupScreen] — the
-/// logo, title, subtitle, the two fields, error/info banners, submit
-/// button, and a footer slot for the "switch screens" link. Each screen
-/// owns its own controllers, validation, and submit logic; this widget is
-/// purely the visual shell so the two screens can't drift out of sync.
+/// Shared form chrome for the auth screens — the logo, title, subtitle, the
+/// email and/or password field (whichever controller is given), error/info
+/// banners, submit button, and a footer slot for links. Each screen owns
+/// its own controllers and submit logic; this widget is purely the visual
+/// shell so the screens can't drift out of sync.
 class AuthFormCard extends StatelessWidget {
   const AuthFormCard({
     super.key,
     required this.formKey,
     required this.subtitle,
-    required this.emailController,
-    required this.passwordController,
+    this.emailController,
+    this.passwordController,
+    this.passwordLabel = 'Password',
     required this.submitLabel,
     required this.submitting,
     required this.onSubmit,
@@ -24,10 +25,15 @@ class AuthFormCard extends StatelessWidget {
     this.info,
   });
 
+  /// Minimum for a new password (sign up, reset). Keep in sync with Supabase
+  /// Auth's `minimum_password_length` (config.toml / prod dashboard).
+  static const newPasswordMinLength = 8;
+
   final GlobalKey<FormState> formKey;
   final String subtitle;
-  final TextEditingController emailController;
-  final TextEditingController passwordController;
+  final TextEditingController? emailController;
+  final TextEditingController? passwordController;
+  final String passwordLabel;
   final String submitLabel;
   final bool submitting;
   final VoidCallback onSubmit;
@@ -72,46 +78,38 @@ class AuthFormCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 32),
-                TextFormField(
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    filled: true,
-                    fillColor: AppColors.surface,
-                    border: OutlineInputBorder(),
+                if (emailController case final emailController?)
+                  TextFormField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      final email = value?.trim() ?? '';
+                      if (email.isEmpty) return 'Enter your email';
+                      if (!email.contains('@') || !email.contains('.')) {
+                        return 'Enter a valid email';
+                      }
+                      return null;
+                    },
+                    onFieldSubmitted: passwordController == null
+                        ? (_) => onSubmit()
+                        : null,
                   ),
-                  validator: (value) {
-                    final email = value?.trim() ?? '';
-                    if (email.isEmpty) return 'Enter your email';
-                    if (!email.contains('@') || !email.contains('.')) {
-                      return 'Enter a valid email';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    filled: true,
-                    fillColor: AppColors.surface,
-                    border: OutlineInputBorder(),
+                if (emailController != null && passwordController != null)
+                  const SizedBox(height: 12),
+                if (passwordController case final passwordController?)
+                  _PasswordField(
+                    controller: passwordController,
+                    label: passwordLabel,
+                    minLength: minPasswordLength,
+                    onSubmitted: onSubmit,
                   ),
-                  validator: (value) {
-                    final password = value ?? '';
-                    if (password.isEmpty) return 'Enter your password';
-                    final min = minPasswordLength;
-                    if (min != null && password.length < min) {
-                      return 'At least $min characters';
-                    }
-                    return null;
-                  },
-                  onFieldSubmitted: (_) => onSubmit(),
-                ),
                 if (error != null) ...[
                   const SizedBox(height: 16),
                   Text(
@@ -162,6 +160,63 @@ class AuthFormCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Password input with a show/hide toggle.
+class _PasswordField extends StatefulWidget {
+  const _PasswordField({
+    required this.controller,
+    required this.label,
+    required this.minLength,
+    required this.onSubmitted,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final int? minLength;
+  final VoidCallback onSubmitted;
+
+  @override
+  State<_PasswordField> createState() => _PasswordFieldState();
+}
+
+class _PasswordFieldState extends State<_PasswordField> {
+  bool _obscured = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: widget.controller,
+      obscureText: _obscured,
+      autocorrect: false,
+      enableSuggestions: false,
+      decoration: InputDecoration(
+        labelText: widget.label,
+        filled: true,
+        fillColor: AppColors.surface,
+        border: const OutlineInputBorder(),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscured
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
+          ),
+          tooltip: _obscured ? 'Show password' : 'Hide password',
+          onPressed: () => setState(() => _obscured = !_obscured),
+        ),
+      ),
+      validator: (value) {
+        final password = value ?? '';
+        if (password.isEmpty) return 'Enter your password';
+        final min = widget.minLength;
+        if (min != null && password.length < min) {
+          return 'At least $min characters';
+        }
+        return null;
+      },
+      onFieldSubmitted: (_) => widget.onSubmitted(),
     );
   }
 }

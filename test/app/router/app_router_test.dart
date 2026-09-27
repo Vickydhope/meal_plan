@@ -75,4 +75,39 @@ void main() {
       AppRoute.privacyPolicy.path,
     );
   });
+
+  testWidgets('a password-reset link parks the user on reset password', (
+    tester,
+  ) async {
+    final recovery = StreamController<bool>();
+    addTearDown(recovery.close);
+    final container = ProviderContainer(
+      overrides: [
+        authUserIdProvider.overrideWith((ref) => Stream.value('user-1')),
+        currentUserProfileProvider.overrideWith((ref) async => null),
+        passwordRecoveryProvider.overrideWith((ref) => recovery.stream),
+      ],
+    );
+    addTearDown(container.dispose);
+    final router = container.read(routerProvider);
+    String path() => router.routerDelegate.currentConfiguration.uri.path;
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+    // No profile yet, so a normal sign-in lands on onboarding.
+    expect(path(), AppRoute.onboarding.path);
+
+    recovery.add(true);
+    await tester.pumpAndSettle();
+    expect(path(), AppRoute.resetPassword.path);
+
+    recovery.add(false); // password saved
+    await tester.pumpAndSettle();
+    expect(path(), AppRoute.onboarding.path);
+  });
 }

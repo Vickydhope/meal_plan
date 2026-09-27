@@ -15,6 +15,8 @@ void main() {
   late _MockFunctions functions;
   late SupabaseAuthRepository repository;
 
+  setUpAll(() => registerFallbackValue(UserAttributes()));
+
   setUp(() {
     final client = _MockClient();
     auth = _MockAuth();
@@ -95,5 +97,57 @@ void main() {
       failsWith("Couldn't delete your account. Please try again."),
     );
     verifyNever(() => auth.signOut());
+  });
+
+  test(
+    'passwordRecoveryChanges: reset link on, password update or sign-out off',
+    () async {
+      AuthState event(AuthChangeEvent e) => AuthState(e, null);
+      when(() => auth.onAuthStateChange).thenAnswer(
+        (_) => Stream.fromIterable([
+          event(AuthChangeEvent.initialSession),
+          event(AuthChangeEvent.passwordRecovery),
+          event(AuthChangeEvent.tokenRefreshed),
+          event(AuthChangeEvent.userUpdated),
+          event(AuthChangeEvent.passwordRecovery),
+          event(AuthChangeEvent.signedOut),
+        ]),
+      );
+
+      expect(await repository.passwordRecoveryChanges.toList(), [
+        true,
+        false,
+        true,
+        false,
+      ]);
+    },
+  );
+
+  test('sendPasswordReset sends the app deep link as the redirect', () async {
+    when(
+      () => auth.resetPasswordForEmail(
+        any(),
+        redirectTo: any(named: 'redirectTo'),
+      ),
+    ).thenAnswer((_) async {});
+
+    await repository.sendPasswordReset('a@b.co');
+
+    verify(
+      () => auth.resetPasswordForEmail(
+        'a@b.co',
+        redirectTo: 'com.doops.mealplan.dev://reset-password',
+      ),
+    );
+  });
+
+  test('updatePassword maps an unchanged password to friendly copy', () {
+    when(() => auth.updateUser(any()))
+        .thenThrow(const AuthApiException('raw', code: 'same_password'));
+
+    expect(
+      repository.updatePassword('password123'),
+      failsWith('Choose a password different from your current one.'),
+    );
   });
 }

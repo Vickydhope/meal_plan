@@ -31,4 +31,15 @@ class SupabaseConfig {
 
   static String get url => _env == 'prod' ? _prodUrl : _localUrl;
   static String get anonKey => _env == 'prod' ? _prodAnonKey : _localAnonKey;
+
+  /// Where password-reset emails send the user back to. The scheme is the
+  /// flavor's bundle id, lowercased: Supabase lowercases it in the redirect
+  /// and Android matches schemes case-sensitively (iOS doesn't, so
+  /// Info.plist uses the bundle id as is). Android declares it in
+  /// build.gradle.kts. Dev and prod each open their own app. Must be in
+  /// the project's allowed redirect URLs (config.toml locally, the
+  /// dashboard's URL Configuration on prod).
+  static String get authRedirectUrl =>
+      '${_env == 'prod' ? 'com.doops.mealplan' : 'com.doops.mealplan.dev'}'
+      '://reset-password';
 }

@@ -7,21 +7,25 @@ import '../../../../core/router/app_route.dart';
 import '../providers/auth_providers.dart';
 import '../widgets/auth_form_card.dart';
 
-/// Account-creation screen. If email confirmation is required, no session
-/// is issued on success — the screen stays put and shows [_info] with a
-/// link across to [LoginScreen]. Otherwise `app_router.dart`'s auth-state
-/// redirect swaps this screen out automatically once the session lands.
-class SignupScreen extends ConsumerStatefulWidget {
-  const SignupScreen({super.key});
+/// Emails a password-reset link. Opening it on this phone signs the user in
+/// and the router sends them to [ResetPasswordScreen]. The link carries a
+/// PKCE code whose verifier is stored on this device, so it only works here.
+class ForgotPasswordScreen extends ConsumerStatefulWidget {
+  const ForgotPasswordScreen({super.key, this.initialEmail});
+
+  /// Prefilled from whatever was typed on [LoginScreen].
+  final String? initialEmail;
 
   @override
-  ConsumerState<SignupScreen> createState() => _SignupScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
-class _SignupScreenState extends ConsumerState<SignupScreen> {
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  late final _emailController = TextEditingController(
+    text: widget.initialEmail,
+  );
 
   bool _submitting = false;
   String? _error;
@@ -30,7 +34,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   void dispose() {
     _emailController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
@@ -43,18 +46,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       _info = null;
     });
 
-    final auth = ref.read(authRepositoryProvider);
+    final email = _emailController.text.trim();
     try {
-      await auth.signUpWithEmail(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+      await ref.read(authRepositoryProvider).sendPasswordReset(email);
+      // Same message whether or not the account exists, so this screen
+      // can't be used to find out which emails are registered.
+      setState(
+        () => _info =
+            'If an account exists for $email, we sent it a link to reset '
+            'your password. Open it on this phone.',
       );
-      if (auth.currentUserId == null) {
-        // Email confirmation is required before a session is issued.
-        setState(() {
-          _info = 'Check your email to confirm your account, then log in.';
-        });
-      }
     } on AuthFailureException catch (err) {
       setState(() => _error = err.message);
     } finally {
@@ -66,11 +67,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Widget build(BuildContext context) {
     return AuthFormCard(
       formKey: _formKey,
-      subtitle: 'Create an account to get started.',
+      subtitle: "Enter your email and we'll send you a reset link.",
       emailController: _emailController,
-      passwordController: _passwordController,
-      submitLabel: 'Sign up',
-      minPasswordLength: AuthFormCard.newPasswordMinLength,
+      submitLabel: 'Send reset link',
       submitting: _submitting,
       error: _error,
       info: _info,
@@ -79,7 +78,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         onPressed: _submitting
             ? null
             : () => context.goNamed(AppRoute.login.name),
-        child: const Text('Already have an account? Log in'),
+        child: const Text('Back to log in'),
       ),
     );
   }

@@ -30,10 +30,11 @@ file_size_limit = "50MiB"
 [auth]
 enabled = true
 site_url = "http://localhost:3000"
-additional_redirect_urls = []
+# Password-reset deep links (SupabaseConfig.authRedirectUrl), dev + prod app.
+additional_redirect_urls = ["com.doops.mealplan.dev://reset-password", "com.doops.mealplan://reset-password"]
 jwt_expiry = 3600
 enable_signup = true
-# Keep in sync with SignupScreen's minPasswordLength and the prod dashboard.
+# Keep in sync with AuthFormCard.newPasswordMinLength and the prod dashboard.
 minimum_password_length = 8
 
 [auth.email]

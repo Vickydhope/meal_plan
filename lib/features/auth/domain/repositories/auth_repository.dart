@@ -31,6 +31,19 @@ abstract class AuthRepository {
   /// Signs the current user out.
   Future<void> signOut();
 
+  /// Emails [email] a link that reopens the app signed in, so the user can
+  /// choose a new password. Succeeds whether or not the account exists.
+  /// Throws `AuthFailureException` on failure, e.g. rate limiting.
+  Future<void> sendPasswordReset(String email);
+
+  /// `true` once a password-reset link signs the user in, back to `false`
+  /// when the password is updated or the user signs out.
+  Stream<bool> get passwordRecoveryChanges;
+
+  /// Sets a new password for the signed-in user. Throws
+  /// `AuthFailureException` on failure, e.g. a weak or unchanged password.
+  Future<void> updatePassword(String password);
+
   /// Permanently deletes the current user's account and all their data,
   /// then signs out on this device. Throws `AuthFailureException` on
   /// failure.
