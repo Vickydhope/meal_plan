@@ -92,10 +92,7 @@ class _MacroRow extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(
-                    stat.label,
-                    style: AppTypography.caption12,
-                  ),
+                  Text(stat.label, style: AppTypography.caption12),
                   const Spacer(),
                   Text.rich(
                     TextSpan(
@@ -192,10 +189,7 @@ class _CalorieProgressRing extends StatelessWidget {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    '$consumed',
-                    style: AppTypography.statValue,
-                  ),
+                  Text('$consumed', style: AppTypography.statValue),
                   const SizedBox(height: 4),
                   Text(
                     'of $target kcal',

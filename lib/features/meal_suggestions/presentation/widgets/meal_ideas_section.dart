@@ -76,7 +76,7 @@ class MealIdeasSection extends ConsumerWidget {
           ),
           AsyncData(value: MealIdeas(remaining: _?, :final meals))
               when meals.isEmpty =>
-            _Prompt (
+            _Prompt(
               message: 'All caught up with those ideas.',
               action: 'New ideas',
               onPressed: notifier.generate,

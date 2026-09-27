@@ -44,15 +44,9 @@ class CalorieRing extends StatelessWidget {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '$consumed',
-                  style: AppTypography.statValueXLarge,
-                ),
+                Text('$consumed', style: AppTypography.statValueXLarge),
                 const SizedBox(height: 4),
-                Text(
-                  'of $target kcal',
-                  style: AppTypography.bodyMedium,
-                ),
+                Text('of $target kcal', style: AppTypography.bodyMedium),
               ],
             ),
           ],

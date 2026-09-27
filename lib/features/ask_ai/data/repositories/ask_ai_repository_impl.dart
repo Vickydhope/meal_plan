@@ -19,9 +19,7 @@ class AskAiRepositoryImpl implements AskAiRepository {
       final historyPayload = history
           .map(
             (message) => {
-              'role': message.role == ChatRole.assistant
-                  ? 'assistant'
-                  : 'user',
+              'role': message.role == ChatRole.assistant ? 'assistant' : 'user',
               'text': message.text,
             },
           )

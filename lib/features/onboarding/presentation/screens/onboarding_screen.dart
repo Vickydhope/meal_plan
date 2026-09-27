@@ -52,13 +52,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   OnboardingStep get _step => OnboardingStep.values[_stepIndex];
 
   bool get _canContinue => switch (_step) {
-        OnboardingStep.sex => _sex != null,
-        OnboardingStep.dob => _dob != null,
-        OnboardingStep.bodyMetrics => _bodyMetrics != null,
-        OnboardingStep.activityLevel => _activityLevel != null,
-        OnboardingStep.goal => _goal != null,
-        OnboardingStep.summary => true,
-      };
+    OnboardingStep.sex => _sex != null,
+    OnboardingStep.dob => _dob != null,
+    OnboardingStep.bodyMetrics => _bodyMetrics != null,
+    OnboardingStep.activityLevel => _activityLevel != null,
+    OnboardingStep.goal => _goal != null,
+    OnboardingStep.summary => true,
+  };
 
   void _goToStep(int index) {
     setState(() => _stepIndex = index);
@@ -155,7 +155,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     if (_stepIndex > 0)
                       IconButton(
                         padding: EdgeInsets.zero,
-                        icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: AppColors.textPrimary,
+                        ),
                         onPressed: _goBack,
                       )
                     else
@@ -163,7 +166,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: OnboardingProgressBar(
-                        progress: (_stepIndex + 1) / OnboardingStep.values.length,
+                        progress:
+                            (_stepIndex + 1) / OnboardingStep.values.length,
                       ),
                     ),
                   ],
@@ -185,7 +189,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(_error!, style: const TextStyle(color: AppColors.error)),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: AppColors.error),
+                  ),
                 ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
@@ -193,7 +200,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   width: double.infinity,
                   height: 56,
                   child: FilledButton(
-                    onPressed: (_canContinue && !_submitting) ? _continue : null,
+                    onPressed: (_canContinue && !_submitting)
+                        ? _continue
+                        : null,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: AppColors.onScrim,
@@ -211,7 +220,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                               color: AppColors.onScrim,
                             ),
                           )
-                        : Text(_step == OnboardingStep.summary ? 'Get Started' : 'Continue'),
+                        : Text(
+                            _step == OnboardingStep.summary
+                                ? 'Get Started'
+                                : 'Continue',
+                          ),
                   ),
                 ),
               ),
@@ -230,27 +243,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget _buildStep(OnboardingStep step) {
     return switch (step) {
       OnboardingStep.sex => SexStep(
-          value: _sex,
-          onChanged: (value) => setState(() => _sex = value),
-        ),
+        value: _sex,
+        onChanged: (value) => setState(() => _sex = value),
+      ),
       OnboardingStep.dob => DobStep(
-          value: _dob,
-          onChanged: (value) => setState(() => _dob = value),
-        ),
+        value: _dob,
+        onChanged: (value) => setState(() => _dob = value),
+      ),
       OnboardingStep.bodyMetrics => BodyMetricsStep(
-          value: _bodyMetrics,
-          onChanged: (value) => setState(() => _bodyMetrics = value),
-        ),
+        value: _bodyMetrics,
+        onChanged: (value) => setState(() => _bodyMetrics = value),
+      ),
       OnboardingStep.activityLevel => ActivityLevelStep(
-          value: _activityLevel,
-          onChanged: (value) => setState(() => _activityLevel = value),
-        ),
+        value: _activityLevel,
+        onChanged: (value) => setState(() => _activityLevel = value),
+      ),
       OnboardingStep.goal => GoalStep(
-          value: _goal,
-          onChanged: (value) => setState(() => _goal = value),
-        ),
+        value: _goal,
+        onChanged: (value) => setState(() => _goal = value),
+      ),
       OnboardingStep.summary =>
-        _summary == null ? const SizedBox.shrink() : SummaryStep(result: _summary!),
+        _summary == null
+            ? const SizedBox.shrink()
+            : SummaryStep(result: _summary!),
     };
   }
 }

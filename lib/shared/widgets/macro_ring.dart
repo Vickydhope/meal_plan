@@ -52,9 +52,7 @@ class MacroRing extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           '$value$unit',
-          style: Theme.of(context)
-              .textTheme
-              .titleSmall
+          style: Theme.of(context).textTheme.titleSmall
               ?.copyWith(fontWeight: FontWeight.bold),
         ),
         Text(

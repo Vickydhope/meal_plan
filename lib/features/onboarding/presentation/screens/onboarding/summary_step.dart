@@ -30,10 +30,7 @@ class SummaryStep extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                'Your Daily calories',
-                style: AppTypography.bodyMedium,
-              ),
+              Text('Your Daily calories', style: AppTypography.bodyMedium),
             ],
           ),
         ),
@@ -99,7 +96,9 @@ class _MacroStat extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary),
+          style: AppTypography.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+          ),
         ),
       ],
     );

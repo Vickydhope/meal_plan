@@ -48,7 +48,11 @@ class AskAiNotifier extends Notifier<AskAiState> {
       messages: [
         ...historyBeforeSend,
         ChatMessage(role: ChatRole.user, text: trimmed),
-        const ChatMessage(role: ChatRole.assistant, text: '', isStreaming: true),
+        const ChatMessage(
+          role: ChatRole.assistant,
+          text: '',
+          isStreaming: true,
+        ),
       ],
       isStreaming: true,
       clearError: true,
@@ -69,14 +73,15 @@ class AskAiNotifier extends Notifier<AskAiState> {
           (event) => switch (event) {
             AskAiDelta(:final text) => _appendDelta(buffer, text),
             AskAiCompleted() => _finishAssistantMessage(buffer.toString()),
-            AskAiFailed(:final message) =>
-              _finishAssistantMessage(buffer.toString(), error: message),
+            AskAiFailed(:final message) => _finishAssistantMessage(
+              buffer.toString(),
+              error: message,
+            ),
           },
-          onError: (Object err) =>
-              _finishAssistantMessage(
-                buffer.toString(),
-                error: userMessageFor(err),
-              ),
+          onError: (Object err) => _finishAssistantMessage(
+            buffer.toString(),
+            error: userMessageFor(err),
+          ),
           onDone: () {
             if (!completer.isCompleted) completer.complete();
           },
