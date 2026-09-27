@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:health/health.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/error/app_exception.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
@@ -13,6 +17,7 @@ import '../../domain/entities/daily_activity.dart';
 import '../../domain/repositories/activity_log_repository.dart';
 import '../../domain/repositories/fitness_repository.dart';
 import '../../domain/repositories/weight_log_repository.dart';
+import '../../domain/usecases/backfill_recent_activity_usecase.dart';
 import '../../domain/usecases/calculate_activity_adjusted_target_usecase.dart';
 import '../../domain/usecases/get_today_activity_usecase.dart';
 import '../../domain/usecases/get_weight_history_usecase.dart';
@@ -62,6 +67,13 @@ final setActivitySyncUseCaseProvider = Provider(
 
 final getTodayActivityUseCaseProvider = Provider(
   (ref) => GetTodayActivityUseCase(
+    ref.watch(fitnessRepositoryProvider),
+    ref.watch(activityLogRepositoryProvider),
+  ),
+);
+
+final backfillRecentActivityUseCaseProvider = Provider(
+  (ref) => BackfillRecentActivityUseCase(
     ref.watch(fitnessRepositoryProvider),
     ref.watch(activityLogRepositoryProvider),
   ),
@@ -125,10 +137,25 @@ final todayActivityProvider = FutureProvider<DailyActivity?>((ref) async {
   final userId = ref.watch(authRepositoryProvider).currentUserId;
   if (userId == null) return null;
   final profile = await ref.watch(currentUserProfileProvider.future);
-  return ref.watch(getTodayActivityUseCaseProvider)(
+  final activity = await ref.watch(getTodayActivityUseCaseProvider)(
     userId,
     weightKg: profile?.weightKg,
   );
+  // Background, after today's reading so it never delays it. Expected
+  // failures (offline, permission revoked) just retry next time.
+  unawaited(
+    ref
+        .read(backfillRecentActivityUseCaseProvider)(
+          userId,
+          weightKg: profile?.weightKg,
+        )
+        .catchError((Object err, StackTrace stack) {
+          if (err is! AppException) {
+            Sentry.captureException(err, stackTrace: stack);
+          }
+        }),
+  );
+  return activity;
 });
 
 /// Today's calorie budget, as `HomeScreen`, the Plan tab,

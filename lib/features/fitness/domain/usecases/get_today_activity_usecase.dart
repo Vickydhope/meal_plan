@@ -24,25 +24,34 @@ class GetTodayActivityUseCase {
   static const _kcalPerStepPerKg = 0.00045;
   static const _defaultWeightKg = 70.0;
 
-  /// [weightKg] scales the steps-based estimate used when the health store
-  /// records steps but no active energy (common on phones without a watch).
+  /// Fills in active energy from steps when the health store records steps
+  /// but no active energy (common on phones without a watch). [weightKg]
+  /// scales the estimate.
+  static DailyActivity withEstimatedEnergy(
+    DailyActivity activity, {
+    double? weightKg,
+  }) {
+    if (activity.activeEnergyBurnedKcal != 0 || activity.steps == 0) {
+      return activity;
+    }
+    return DailyActivity(
+      date: activity.date,
+      steps: activity.steps,
+      activeEnergyBurnedKcal:
+          (activity.steps * (weightKg ?? _defaultWeightKg) * _kcalPerStepPerKg)
+              .round(),
+    );
+  }
+
   Future<DailyActivity?> call(String userId, {double? weightKg}) async {
     final today = _now();
     if (!await _fitness.isSyncEnabled()) {
       return _activityLog.fetchActivity(userId, today);
     }
-    var activity = await _fitness.getActivityForDay(today);
-    if (activity.activeEnergyBurnedKcal == 0 && activity.steps > 0) {
-      activity = DailyActivity(
-        date: activity.date,
-        steps: activity.steps,
-        activeEnergyBurnedKcal:
-            (activity.steps *
-                    (weightKg ?? _defaultWeightKg) *
-                    _kcalPerStepPerKg)
-                .round(),
-      );
-    }
+    final activity = withEstimatedEnergy(
+      await _fitness.getActivityForDay(today),
+      weightKg: weightKg,
+    );
     try {
       await _activityLog.saveActivity(userId, activity);
     } on AppException {

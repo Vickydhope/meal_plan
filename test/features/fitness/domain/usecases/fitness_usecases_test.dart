@@ -3,6 +3,7 @@ import 'package:meal_plan/core/error/app_exception.dart';
 import 'package:meal_plan/features/fitness/domain/entities/daily_activity.dart';
 import 'package:meal_plan/features/fitness/domain/repositories/activity_log_repository.dart';
 import 'package:meal_plan/features/fitness/domain/repositories/fitness_repository.dart';
+import 'package:meal_plan/features/fitness/domain/usecases/backfill_recent_activity_usecase.dart';
 import 'package:meal_plan/features/fitness/domain/usecases/calculate_activity_adjusted_target_usecase.dart';
 import 'package:meal_plan/features/fitness/domain/usecases/get_today_activity_usecase.dart';
 import 'package:meal_plan/features/fitness/domain/usecases/remove_meal_from_health_usecase.dart';
@@ -40,6 +41,7 @@ void main() {
     registerFallbackValue(
       DailyActivity(date: DateTime(0), steps: 0, activeEnergyBurnedKcal: 0),
     );
+    registerFallbackValue(<DailyActivity>[]);
   });
 
   setUp(() {
@@ -173,6 +175,92 @@ void main() {
         expect(saved.activeEnergyBurnedKcal, 59);
       },
     );
+  });
+
+  group('BackfillRecentActivityUseCase', () {
+    late _MockActivityLogRepository log;
+    late BackfillRecentActivityUseCase backfill;
+    var now = DateTime(2026, 9, 24, 15);
+
+    DailyActivity day(int d, {int steps = 0, int kcal = 0}) => DailyActivity(
+      date: DateTime(2026, 9, d),
+      steps: steps,
+      activeEnergyBurnedKcal: kcal,
+    );
+
+    setUp(() {
+      now = DateTime(2026, 9, 24, 15);
+      log = _MockActivityLogRepository();
+      backfill = BackfillRecentActivityUseCase(repository, log, now: () => now);
+      when(() => repository.isSyncEnabled()).thenAnswer((_) async => true);
+      // Sept 18-23; the 20th had no data, the 22nd steps but no energy.
+      when(() => repository.getActivityForDay(any())).thenAnswer((inv) async {
+        final d = (inv.positionalArguments.single as DateTime).day;
+        return switch (d) {
+          20 => day(20),
+          22 => day(22, steps: 1648),
+          _ => day(d, steps: 5000, kcal: 200),
+        };
+      });
+      when(() => log.saveActivities(any(), any())).thenAnswer((_) async {});
+    });
+
+    List<DailyActivity> uploaded() =>
+        verify(() => log.saveActivities('user-1', captureAny())).captured.single
+            as List<DailyActivity>;
+
+    test('uploads the 6 days before today in one batch, skipping empty days '
+        'and estimating energy from steps', () async {
+      await backfill('user-1', weightKg: 80);
+
+      verify(() => repository.getActivityForDay(any()))
+          .called(BackfillRecentActivityUseCase.pastDays);
+      verifyNever(() => repository.getActivityForDay(DateTime(2026, 9, 24)));
+      final days = uploaded();
+      expect(days.map((a) => a.date.day), [23, 22, 21, 19, 18]);
+      expect(
+        days.firstWhere((a) => a.date.day == 22).activeEnergyBurnedKcal,
+        59,
+      );
+    });
+
+    test('reads local midnights', () async {
+      await backfill('user-1');
+      final asked = verify(() => repository.getActivityForDay(captureAny()))
+          .captured
+          .cast<DateTime>();
+      expect(asked.every((d) => d.hour == 0 && d.minute == 0), isTrue);
+    });
+
+    test('runs once per day, again the next day', () async {
+      await backfill('user-1');
+      await backfill('user-1');
+      verify(() => log.saveActivities(any(), any())).called(1);
+
+      now = DateTime(2026, 9, 25, 8);
+      await backfill('user-1');
+      verify(() => log.saveActivities(any(), any())).called(1);
+    });
+
+    test('does nothing when this device does not sync Health', () async {
+      when(() => repository.isSyncEnabled()).thenAnswer((_) async => false);
+      await backfill('user-1');
+      verifyNever(() => repository.getActivityForDay(any()));
+      verifyNever(() => log.saveActivities(any(), any()));
+    });
+
+    test('a failed upload is retried on the next call', () async {
+      when(() => log.saveActivities(any(), any()))
+          .thenThrow(const MealLogPersistenceException('offline'));
+      await expectLater(
+        backfill('user-1'),
+        throwsA(isA<MealLogPersistenceException>()),
+      );
+
+      when(() => log.saveActivities(any(), any())).thenAnswer((_) async {});
+      await backfill('user-1');
+      verify(() => log.saveActivities(any(), any())).called(2);
+    });
   });
 
   group('CalculateActivityAdjustedTargetUseCase', () {

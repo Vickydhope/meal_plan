@@ -22,17 +22,28 @@ class ActivityLogRepositoryImpl implements ActivityLogRepository {
   ).toIso8601String().split('T').first;
 
   @override
-  Future<void> saveActivity(String userId, DailyActivity activity) async {
+  Future<void> saveActivity(String userId, DailyActivity activity) =>
+      saveActivities(userId, [activity]);
+
+  @override
+  Future<void> saveActivities(
+    String userId,
+    List<DailyActivity> activities,
+  ) async {
+    final updatedAt = DateTime.now().toUtc().toIso8601String();
     try {
       // ponytail: last write wins if two devices both sync Health for the
       // same account; switch to an RPC taking greatest() if that happens.
-      await _client.from(_table).upsert({
-        'user_id': userId,
-        'day': _dayKey(activity.date),
-        'steps': activity.steps,
-        'active_energy_kcal': activity.activeEnergyBurnedKcal,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      });
+      await _client.from(_table).upsert([
+        for (final activity in activities)
+          {
+            'user_id': userId,
+            'day': _dayKey(activity.date),
+            'steps': activity.steps,
+            'active_energy_kcal': activity.activeEnergyBurnedKcal,
+            'updated_at': updatedAt,
+          },
+      ]);
     } catch (err) {
       throw MealLogPersistenceException('Failed to save activity: $err');
     }

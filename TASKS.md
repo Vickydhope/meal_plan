@@ -20,7 +20,6 @@ Single source of truth for pending work. (Replaces the old `plan.md` production-
 - [ ] Leaked password protection (Authentication → Sign In / Providers → Email → "Prevent use of leaked passwords") - needs the Supabase Pro plan; org is on Free (checked 2026-09-28). Advisor warning stays until then
 - [ ] Apple/Google sign-in as extra auth providers (email/password account model already supports it)
 - [ ] Health meal write-back gaps: backfill existing history when the switch is turned on; sync edits/deletes made while it was off; per-device only (meals logged on a tablet don't reach the phone's Health)
-- [ ] Backfill `daily_activity` history before today
 
 ## Done
 
@@ -101,3 +100,4 @@ Single source of truth for pending work. (Replaces the old `plan.md` production-
   - Checked on the local stack by hand: recover with PKCE challenge → Mailpit email → verify redirect to the app scheme → code exchanged for a session → 7-char new password rejected, 12-char accepted → log in with it
   - Password fields have a show/hide toggle; Settings → Log out now asks first (shared `showConfirmDialog`, also used by delete account and the Home back-press exit)
   - 5 new tests (140 total)
+- [x] ~~Backfill `daily_activity` history~~ (2026-09-28, not run on a device) - `BackfillRecentActivityUseCase` uploads the 6 days before today from the syncing phone's Health store in one upsert (`ActivityLogRepository.saveActivities`), so Ask AI's 7-day activity summary no longer has gaps (days before sync was on, days the app wasn't opened) or stale partial days. Runs in the background after today's reading in `todayActivityProvider`, at most once per day per session, retried next time on failure; skips days with no data, applies the same steps-based energy estimate as today. Unexpected errors go to Sentry. No DB change (PK `(user_id, day)` + RLS already allow any day; checked a batch upsert on the local stack). 5 new tests (145 total)

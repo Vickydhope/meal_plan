@@ -6,6 +6,9 @@ import '../entities/daily_activity.dart';
 abstract class ActivityLogRepository {
   Future<void> saveActivity(String userId, DailyActivity activity);
 
+  /// Saves several days in one request (see `BackfillRecentActivityUseCase`).
+  Future<void> saveActivities(String userId, List<DailyActivity> activities);
+
   /// The stored activity for [day]'s local calendar date, or `null`.
   Future<DailyActivity?> fetchActivity(String userId, DateTime day);
 
