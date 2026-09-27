@@ -159,12 +159,13 @@ class HomeScreen extends ConsumerWidget {
                 sliver: SliverToBoxAdapter(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: 8,
                     children: [
                       WeekStrip(
                         selectedDate: state.selectedDate ?? DateTime.now(),
                         onDateSelected: notifier.selectDate,
                       ),
-                      const SizedBox(height: 16),
+
                       CalorieOverviewCard(
                         consumed: state.totalCaloriesToday,
                         target: todayBudget ?? state.dailyTarget,
