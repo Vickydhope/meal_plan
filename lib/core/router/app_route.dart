@@ -16,7 +16,8 @@ enum AppRoute {
   notifications('/notifications'),
   profile('/profile'),
   nutritionGoals('/nutrition-goals'),
-  trends('/trends');
+  trends('/trends'),
+  privacyPolicy('/privacy-policy');
 
   const AppRoute(this.path);
 

@@ -19,6 +19,7 @@ import '../../features/nutrition_goals/presentation/screens/nutrition_goals_scre
 import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../../features/profile/presentation/providers/profile_providers.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/settings/presentation/screens/privacy_policy_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import 'router_refresh_notifier.dart';
 import 'splash_screen.dart';
@@ -31,6 +32,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoute.splash.path,
     refreshListenable: ref.watch(routerRefreshNotifierProvider),
     redirect: (context, state) {
+      // Public: Health Connect links here, signed in or not.
+      if (state.matchedLocation == AppRoute.privacyPolicy.path) return null;
+
       final onAuthScreen =
           state.matchedLocation == AppRoute.login.path ||
           state.matchedLocation == AppRoute.signup.path;
@@ -175,6 +179,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: AppRoute.trends.name,
         path: AppRoute.trends.path,
         builder: (context, state) => const TrendsScreen(),
+      ),
+      GoRoute(
+        name: AppRoute.privacyPolicy.name,
+        path: AppRoute.privacyPolicy.path,
+        builder: (context, state) => const PrivacyPolicyScreen(),
       ),
     ],
   );

@@ -43,4 +43,36 @@ void main() {
       AppRoute.login.path,
     );
   });
+
+  testWidgets('privacy policy stays reachable while loading and signed out', (
+    tester,
+  ) async {
+    final auth = StreamController<String?>();
+    addTearDown(auth.close);
+    final container = ProviderContainer(
+      overrides: [
+        authUserIdProvider.overrideWith((ref) => auth.stream),
+        currentUserProfileProvider.overrideWith((ref) async => null),
+      ],
+    );
+    addTearDown(container.dispose);
+    final router = container.read(routerProvider);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    router.go(AppRoute.privacyPolicy.path);
+    await tester.pumpAndSettle();
+    expect(find.text('Privacy policy'), findsOneWidget);
+
+    auth.add(null); // signed out
+    await tester.pumpAndSettle();
+    expect(
+      router.routerDelegate.currentConfiguration.uri.path,
+      AppRoute.privacyPolicy.path,
+    );
+  });
 }

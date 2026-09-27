@@ -41,8 +41,8 @@
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE"/>
             </intent-filter>
         </activity>
-        <!-- Android 14+: Health Connect's privacy-policy link. Opens the app
-             for now; point at a real privacy-policy screen before Play review. -->
+        <!-- Android 14+: Health Connect's privacy-policy link. MainActivity
+             opens /privacy-policy for this action. -->
         <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"

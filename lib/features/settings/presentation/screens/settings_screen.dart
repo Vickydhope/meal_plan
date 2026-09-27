@@ -105,10 +105,20 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 20),
-            const _SettingsSection(
+            _SettingsSection(
               title: 'About',
               children: [
                 _SettingsRow(
+                  icon: Icons.privacy_tip_outlined,
+                  label: 'Privacy policy',
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: AppColors.textTertiary,
+                  ),
+                  onTap: () => context.pushNamed(AppRoute.privacyPolicy.name),
+                ),
+                const _SettingsRow(
                   icon: Icons.info_outline,
                   label: 'App version',
                   trailing: Text(
