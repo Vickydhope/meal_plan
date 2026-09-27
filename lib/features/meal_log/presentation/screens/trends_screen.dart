@@ -9,6 +9,7 @@ import '../../../../core/router/app_route.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../fitness/presentation/providers/fitness_providers.dart';
+import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../domain/usecases/get_daily_nutrition_usecase.dart';
 import '../providers/meal_log_providers.dart';
 
@@ -32,7 +33,7 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
   @override
   Widget build(BuildContext context) {
     final nutrition = ref.watch(dailyNutritionProvider(_days));
-    final target = ref.watch(mealLogProvider.select((s) => s.dailyTarget));
+    final target = ref.watch(dailyCalorieTargetProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,

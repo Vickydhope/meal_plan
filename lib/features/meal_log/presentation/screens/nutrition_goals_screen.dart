@@ -20,7 +20,6 @@ import '../../../profile/domain/entities/user_profile.dart';
 import '../../../profile/domain/usecases/calculate_calorie_target_usecase.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
-import '../providers/meal_log_providers.dart';
 
 const _monthNames = [
   'Jan',
@@ -241,7 +240,6 @@ class _NutritionGoalsScreenState extends ConsumerState<NutritionGoalsScreen> {
         dailyCalorieTarget: preview.dailyCalorieTarget,
       );
       ref.invalidate(currentUserProfileProvider);
-      await ref.read(mealLogProvider.notifier).refreshProfile();
       if (mounted) showAppSnackBar(context, 'Plan updated');
     } catch (err) {
       // Roll the fields back to the last-saved profile.

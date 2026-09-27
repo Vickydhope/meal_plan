@@ -9,7 +9,6 @@ import '../../../../core/error/app_exception.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../fitness/presentation/providers/fitness_providers.dart';
 import '../../../notifications/presentation/providers/notification_providers.dart';
-import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../domain/entities/meal_analysis_item.dart';
 import '../../domain/entities/meal_analysis_stream_event.dart';
 import '../../domain/entities/meal_log.dart';
@@ -34,30 +33,9 @@ class MealLogNotifier extends Notifier<MealLogState> {
   MealLogState build() {
     final today = DateTime.now();
     final normalized = DateTime(today.year, today.month, today.day);
-    Future.microtask(_loadInitial);
+    Future.microtask(fetchLogsForSelectedDate);
     ref.onDispose(() => _analysisSub?.cancel());
     return MealLogState(selectedDate: normalized);
-  }
-
-  Future<void> _loadInitial() async {
-    await Future.wait([fetchLogsForSelectedDate(), refreshProfile()]);
-  }
-
-  /// Syncs [MealLogState.username]/[MealLogState.avatarPath]/[MealLogState.dailyTarget]
-  /// from [currentUserProfileProvider] — call after invalidating that
-  /// provider when something outside this notifier (e.g. `NutritionGoalsScreen`,
-  /// `ProfileScreen`) changes the stored profile, so the home screen
-  /// reflects it without a restart. Reads the shared provider rather than
-  /// fetching directly, so the router and this notifier share one request.
-  Future<void> refreshProfile() async {
-    final profile = await ref.read(currentUserProfileProvider.future);
-    if (profile == null) return;
-
-    state = state.copyWith(
-      username: profile.username,
-      avatarPath: profile.avatarPath,
-      dailyTarget: profile.dailyCalorieTarget ?? state.dailyTarget,
-    );
   }
 
   /// Selects [date] to view, clamped to today — logging/viewing a future

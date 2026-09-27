@@ -67,6 +67,13 @@ final currentUserProfileProvider = FutureProvider<UserProfile?>((ref) async {
   return ref.watch(fetchUserProfileUseCaseProvider)(userId);
 });
 
+/// The plan's daily calorie target, before any activity adjustment — 2000
+/// until the profile loads, or if it has none.
+final dailyCalorieTargetProvider = Provider<int>(
+  (ref) =>
+      ref.watch(currentUserProfileProvider).value?.dailyCalorieTarget ?? 2000,
+);
+
 /// Keeps `profiles.timezone` current for server-side streak days. `HomeScreen`
 /// listens to it (runs on launch); reruns on app resume in case the device
 /// changed zone.

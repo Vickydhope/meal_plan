@@ -9,7 +9,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
-import '../../../meal_log/presentation/providers/meal_log_providers.dart';
 import '../../domain/entities/user_profile.dart';
 import '../providers/profile_providers.dart';
 
@@ -73,7 +72,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         phone: _contactNoController.text.trim(),
       );
       ref.invalidate(currentUserProfileProvider);
-      await ref.read(mealLogProvider.notifier).refreshProfile();
       if (!mounted) return;
       setState(() => _editing = false);
       showAppSnackBar(context, 'Profile updated');
@@ -136,7 +134,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         previousAvatarPath: previousAvatarPath,
       );
       ref.invalidate(currentUserProfileProvider);
-      await ref.read(mealLogProvider.notifier).refreshProfile();
       if (!mounted) return;
       showAppSnackBar(context, 'Profile photo updated');
     } catch (err) {

@@ -52,7 +52,6 @@ class HomeScreen extends ConsumerWidget {
       // carry the previous value, which would repeat the snackbar.
       if (next case AsyncData(value: final kg?)) {
         ref.invalidate(currentUserProfileProvider);
-        notifier.refreshProfile();
         showAppSnackBar(
           context,
           'Weight updated from Health: ${kg.toStringAsFixed(1)} kg',
@@ -70,13 +69,15 @@ class HomeScreen extends ConsumerWidget {
     final isToday = DateUtils.isSameDay(selectedDay, DateTime.now());
 
     // Used only to size the card's per-macro targets; not a stored target.
-    final macroTargets = MacroSplit.fromCalories(state.dailyTarget);
+    final dailyTarget = ref.watch(dailyCalorieTargetProvider);
+    final profile = ref.watch(currentUserProfileProvider).value;
+    final macroTargets = MacroSplit.fromCalories(dailyTarget);
 
     // Activity is only read for today, so past days keep the plain target.
     final activity = isToday ? ref.watch(todayActivityProvider).value : null;
     final todayBudget = isToday ? ref.watch(todayCalorieBudgetProvider) : null;
     final caloriesLeft =
-        (todayBudget ?? state.dailyTarget) - state.totalCaloriesToday;
+        (todayBudget ?? dailyTarget) - state.totalCaloriesToday;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -87,7 +88,7 @@ class HomeScreen extends ConsumerWidget {
         leadingWidth: 64,
         leading: Padding(
           padding: const EdgeInsets.only(left: 16),
-          child: _HomeAvatar(avatarPath: state.avatarPath),
+          child: _HomeAvatar(avatarPath: profile?.avatarPath),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,7 +100,10 @@ class HomeScreen extends ConsumerWidget {
                 color: AppColors.textSecondary,
               ),
             ),
-            Text(state.username ?? 'Guest!', style: AppTypography.titleLarge),
+            Text(
+              profile?.username ?? 'Guest!',
+              style: AppTypography.titleLarge,
+            ),
           ],
         ),
         actions: [
@@ -170,7 +174,7 @@ class HomeScreen extends ConsumerWidget {
 
                       CalorieOverviewCard(
                         consumed: state.totalCaloriesToday,
-                        target: todayBudget ?? state.dailyTarget,
+                        target: todayBudget ?? dailyTarget,
                         macros: [
                           MacroStat(
                             label: 'Protein',

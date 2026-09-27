@@ -6,6 +6,7 @@ import '../../../../core/providers/core_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../fitness/presentation/providers/fitness_providers.dart';
 import '../../../meal_log/presentation/providers/meal_log_providers.dart';
+import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../data/repositories/meal_suggestion_repository_impl.dart';
 import '../../domain/entities/meal_suggestion.dart';
 import '../../domain/repositories/meal_suggestion_repository.dart';
@@ -45,9 +46,9 @@ class MealIdeasNotifier extends AsyncNotifier<MealIdeas?> {
     state = await AsyncValue.guard(() async {
       // Today's budget as the app shows it (activity-adjusted if enabled),
       // and today's meals fetched fresh — Home may be showing another day.
-      final budget =
+      final int budget =
           ref.read(todayCalorieBudgetProvider) ??
-          ref.read(mealLogProvider).dailyTarget;
+          ref.read(dailyCalorieTargetProvider);
       final logs = await ref.read(fetchMealLogsUseCaseProvider)(
         userId: userId,
         date: DateTime.now(),

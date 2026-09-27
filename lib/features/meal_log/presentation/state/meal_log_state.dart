@@ -5,9 +5,6 @@ import '../../domain/entities/pending_meal_analysis.dart';
 class MealLogState {
   const MealLogState({
     this.logs = const [],
-    this.dailyTarget = 2000,
-    this.username,
-    this.avatarPath,
     this.selectedDate,
     this.isLoadingLogs = false,
     this.isProcessing = false,
@@ -19,12 +16,6 @@ class MealLogState {
   });
 
   final List<MealLog> logs;
-  final int dailyTarget;
-  final String? username;
-
-  /// Storage path within the public `avatars` bucket — resolve to a
-  /// displayable URL via `AvatarRepository.publicUrlFor`.
-  final String? avatarPath;
   final DateTime? selectedDate;
 
   /// True while [logs] is being (re)fetched for [selectedDate] — the home
@@ -50,9 +41,6 @@ class MealLogState {
 
   MealLogState copyWith({
     List<MealLog>? logs,
-    int? dailyTarget,
-    String? username,
-    String? avatarPath,
     DateTime? selectedDate,
     bool? isLoadingLogs,
     bool? isProcessing,
@@ -67,9 +55,6 @@ class MealLogState {
   }) {
     return MealLogState(
       logs: logs ?? this.logs,
-      dailyTarget: dailyTarget ?? this.dailyTarget,
-      username: username ?? this.username,
-      avatarPath: avatarPath ?? this.avatarPath,
       selectedDate: selectedDate ?? this.selectedDate,
       isLoadingLogs: isLoadingLogs ?? this.isLoadingLogs,
       isProcessing: isProcessing ?? this.isProcessing,
