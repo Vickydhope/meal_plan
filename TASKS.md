@@ -4,6 +4,7 @@ Single source of truth for pending work. (Replaces the old `plan.md` production-
 
 ## Active
 
+- [ ] **Buy a domain** - blocks custom SMTP (sending domain needs SPF/DKIM, e.g. Resend), the public privacy-policy URL and the account-deletion web link for Play; all three can live on it. Stopgap for a few testers: Gmail SMTP with an app password (`smtp.gmail.com:587`)
 - [ ] **Prod Auth settings for password reset + 8-char minimum** (dashboard, all under Authentication):
   - URL Configuration → Redirect URLs: add `com.doops.mealplan://reset-password` (without it the reset email links to the Site URL instead of the app)
   - Sign In / Providers → Email → Minimum password length: 8 (the app enforces 8 on sign up/reset, but only the server setting stops direct API calls)
