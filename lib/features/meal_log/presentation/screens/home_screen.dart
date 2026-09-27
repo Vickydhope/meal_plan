@@ -75,6 +75,8 @@ class HomeScreen extends ConsumerWidget {
     // Activity is only read for today, so past days keep the plain target.
     final activity = isToday ? ref.watch(todayActivityProvider).value : null;
     final todayBudget = isToday ? ref.watch(todayCalorieBudgetProvider) : null;
+    final caloriesLeft =
+        (todayBudget ?? state.dailyTarget) - state.totalCaloriesToday;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -203,12 +205,8 @@ class HomeScreen extends ConsumerWidget {
                                   ?.calorieMode ==
                               CalorieMode.dynamic,
                         ),
-                      if (isToday)
-                        _MealIdeasPrompt(
-                          caloriesLeft:
-                              (todayBudget ?? state.dailyTarget) -
-                              state.totalCaloriesToday,
-                        ),
+                      if (isToday && caloriesLeft >= _ideasPromptMinCalories)
+                        _MealIdeasPrompt(caloriesLeft: caloriesLeft),
                       WaterCard(
                         key: ValueKey(selectedDay),
                         day: selectedDay,
@@ -331,52 +329,48 @@ class _MealIdeasPrompt extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (caloriesLeft < _ideasPromptMinCalories) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      // Its own Material rather than an Ink decoration, so the background
-      // moves with the row when the list relays out (see the Plan tab).
-      child: Material(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => _open(context, ref),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                const Icon(
-                  LucideIcons.sparkles,
-                  size: 16,
-                  color: AppColors.accent,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(text: '$caloriesLeft kcal left · '),
-                        TextSpan(
-                          text: 'Get meal ideas',
-                          style: AppTypography.bodySmallMedium.copyWith(
-                            color: AppColors.primary,
-                          ),
+    // Its own Material rather than an Ink decoration, so the background
+    // moves with the row when the list relays out (see the Plan tab).
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _open(context, ref),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              const Icon(
+                LucideIcons.sparkles,
+                size: 16,
+                color: AppColors.accent,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: '$caloriesLeft kcal left · '),
+                      TextSpan(
+                        text: 'Get meal ideas',
+                        style: AppTypography.bodySmallMedium.copyWith(
+                          color: AppColors.primary,
                         ),
-                      ],
-                    ),
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                      ),
+                    ],
+                  ),
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textSecondary,
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right,
-                  size: 18,
-                  color: AppColors.textTertiary,
-                ),
-              ],
-            ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: AppColors.textTertiary,
+              ),
+            ],
           ),
         ),
       ),
