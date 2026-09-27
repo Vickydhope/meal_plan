@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show appFlavor;
 
-import '../theme/app_colors.dart';
-import '../theme/app_typography.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 
 /// Shown while the restored session or the signed-in user's profile is
 /// still loading, so [AppRouter]'s redirect has enough information to

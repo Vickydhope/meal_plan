@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/router/app_route.dart';
-import '../../core/router/splash_screen.dart';
 import '../../features/app_shell/presentation/screens/app_shell.dart';
 import '../../features/ask_ai/presentation/screens/ask_ai_screen.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
@@ -22,6 +21,7 @@ import '../../features/profile/presentation/providers/profile_providers.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import 'router_refresh_notifier.dart';
+import 'splash_screen.dart';
 
 /// Builds the app's [GoRouter], gating access to onboarding/the main shell
 /// based on auth + profile state — replicates the three-way branch that
