@@ -12,7 +12,6 @@ Single source of truth for pending work. (Replaces the old `plan.md` production-
 ## Someday
 
 - [ ] Apple/Google sign-in as extra auth providers (email/password account model already supports it)
-- [ ] Tests for remaining repository impls: `ImageRepositoryImpl`, profile/avatar/auth/ask-ai
 - [ ] Health meal write-back gaps: backfill existing history when the switch is turned on; sync edits/deletes made while it was off; per-device only (meals logged on a tablet don't reach the phone's Health)
 - [ ] Backfill `daily_activity` history before today
 
@@ -83,3 +82,5 @@ Single source of truth for pending work. (Replaces the old `plan.md` production-
   - Ask AI context states the mode and quotes the app's budget alongside the fixed target (2 new Deno tests, 11 total)
   - Tests: fixed → plan target, dynamic → sedentary + burn, DTO default/partial-write (81 Flutter tests)
   - Copy pass (2026-09-25): "Dynamic" is shown as "Activity-based" everywhere users see it (enum label, Ask AI context, suggestion chip "goal" not "budget"). Plan's big number shows the inactive-day base in activity-based mode ("Daily calories on an inactive day, plus what you burn") instead of the fixed goal; plain-language explanations per option, including the no-activity-synced fallback and how to fix it; a snackbar confirms each switch with the new number. Home's activity line says "N kcal burned · added to today's goal" only when it actually is. `ask-ai` v7 deployed with the new wording
+- [x] ~~Tests for remaining repository impls~~ (2026-09-27) - `ImageRepositoryImpl` (compression retry steps, 5-attempt cap, null → exception, upload path/wrapping, best-effort delete), `SupabaseAuthRepository` (error-code mapping, non-API errors never leak), `AskAiRepositoryImpl` (SSE event mapping, history/local-day payload, thrown error → safe message). 11 new tests (130 total)
+  - Skipped profile/avatar repository impls: thin try/catch wrappers with no logic of their own
