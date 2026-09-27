@@ -12,13 +12,13 @@ import '../../../onboarding/presentation/screens/onboarding/dob_step.dart';
 import '../../../onboarding/presentation/screens/onboarding/goal_step.dart';
 import '../../../onboarding/presentation/screens/onboarding/sex_step.dart';
 import '../../../fitness/presentation/providers/fitness_providers.dart';
-import '../../../profile/domain/entities/activity_level.dart';
-import '../../../profile/domain/entities/calorie_mode.dart';
-import '../../../profile/domain/entities/goal.dart';
-import '../../../profile/domain/entities/sex.dart';
-import '../../../profile/domain/entities/user_profile.dart';
-import '../../../profile/domain/usecases/calculate_calorie_target_usecase.dart';
-import '../../../profile/presentation/providers/profile_providers.dart';
+import '../../domain/entities/activity_level.dart';
+import '../../domain/entities/calorie_mode.dart';
+import '../../domain/entities/goal.dart';
+import '../../domain/entities/sex.dart';
+import '../../domain/entities/user_profile.dart';
+import '../../domain/usecases/calculate_calorie_target_usecase.dart';
+import '../providers/profile_providers.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 
 const _monthNames = [

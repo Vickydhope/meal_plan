@@ -83,7 +83,7 @@ lib/
       state/meal_log_state.dart
       notifiers/                 # MealLogNotifier (the day's logs), ScanSessionNotifier (scan → review → confirm); use cases + AuthRepository only
       providers/meal_log_providers.dart  # DI wiring: binds datasource -> repo -> usecase -> notifier
-      screens/                 # AppShell, HomeScreen, CameraScanScreen, ScanResultScreen, PlanScreen
+      screens/                 # HomeScreen, CameraScanScreen, ScanResultScreen, TrendsScreen (PlanScreen lives in meal_suggestions, NutritionGoalsScreen in profile)
   shared/widgets/               # CalorieRing, MacroRing, WeekStrip — presentation-only, feature-agnostic
 ```
 

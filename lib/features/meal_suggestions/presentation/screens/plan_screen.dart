@@ -7,7 +7,7 @@ import '../../../../core/router/app_route.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../fitness/presentation/providers/fitness_providers.dart';
-import '../../../meal_suggestions/presentation/widgets/meal_ideas_section.dart';
+import '../widgets/meal_ideas_section.dart';
 import '../../../profile/domain/entities/calorie_mode.dart';
 import '../../../profile/domain/utils/macro_split.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
