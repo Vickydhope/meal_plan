@@ -33,6 +33,8 @@ site_url = "http://localhost:3000"
 additional_redirect_urls = []
 jwt_expiry = 3600
 enable_signup = true
+# Keep in sync with SignupScreen's minPasswordLength and the prod dashboard.
+minimum_password_length = 8
 
 [auth.email]
 enable_signup = true

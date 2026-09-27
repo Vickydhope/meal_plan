@@ -19,6 +19,7 @@ class AuthFormCard extends StatelessWidget {
     required this.submitting,
     required this.onSubmit,
     required this.footer,
+    this.minPasswordLength,
     this.error,
     this.info,
   });
@@ -31,6 +32,10 @@ class AuthFormCard extends StatelessWidget {
   final bool submitting;
   final VoidCallback onSubmit;
   final Widget footer;
+
+  /// Enforced when setting a password (sign up). `null` on log in, so
+  /// accounts created under an older, shorter minimum can still sign in.
+  final int? minPasswordLength;
   final String? error;
   final String? info;
 
@@ -97,8 +102,11 @@ class AuthFormCard extends StatelessWidget {
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) {
-                    if ((value ?? '').length < 6) {
-                      return 'At least 6 characters';
+                    final password = value ?? '';
+                    if (password.isEmpty) return 'Enter your password';
+                    final min = minPasswordLength;
+                    if (min != null && password.length < min) {
+                      return 'At least $min characters';
                     }
                     return null;
                   },

@@ -91,7 +91,7 @@ class SupabaseAuthRepository implements AuthRepository {
       case 'invalid_credentials':
         return 'Incorrect email or password.';
       case 'weak_password':
-        return 'Password is too weak — use at least 6 characters.';
+        return 'Password is too weak — use at least 8 characters.';
       case 'email_not_confirmed':
         return 'Please confirm your email before logging in.';
       case 'over_email_send_rate_limit':

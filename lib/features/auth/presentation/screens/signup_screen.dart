@@ -70,6 +70,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       emailController: _emailController,
       passwordController: _passwordController,
       submitLabel: 'Sign up',
+      // Matches Supabase Auth's minimum password length (config.toml / dashboard).
+      minPasswordLength: 8,
       submitting: _submitting,
       error: _error,
       info: _info,
