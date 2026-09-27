@@ -143,6 +143,21 @@ class MealLogNotifier extends Notifier<MealLogState> {
     );
   }
 
+  /// Stages an already-complete meal (e.g. an AI suggestion) for review,
+  /// with no analysis to run.
+  void reviewMeal(PendingMealAnalysis pending) {
+    _analysisSub?.cancel();
+    _analysisSub = null;
+    _awaitingUpload = false;
+    state = state.copyWith(
+      pendingAnalysis: pending,
+      isProcessing: false,
+      isStreaming: false,
+      clearError: true,
+      clearStreamingProgress: true,
+    );
+  }
+
   /// Runs one analysis stream, staging its progress in state. With
   /// [awaitsUpload], the result can't be reviewed until the photo's
   /// [UploadCompleted] arrives (see [stopAnalyzing]).

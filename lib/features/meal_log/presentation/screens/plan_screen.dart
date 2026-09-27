@@ -18,6 +18,7 @@ import '../../../profile/domain/entities/goal.dart';
 import '../../../profile/domain/entities/sex.dart';
 import '../../../profile/domain/entities/user_profile.dart';
 import '../../../profile/domain/usecases/calculate_calorie_target_usecase.dart';
+import '../../../meal_suggestions/presentation/widgets/meal_ideas_section.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../../shared/widgets/app_snackbar.dart';
 import '../providers/meal_log_providers.dart';
@@ -352,6 +353,8 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                 children: [
+                  const MealIdeasSection(),
+                  const SizedBox(height: 24),
                   _PlanSummaryCard(
                     preview: _calorieMode == CalorieMode.dynamic
                         ? _basePreview

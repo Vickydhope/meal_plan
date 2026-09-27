@@ -13,6 +13,7 @@ class UpdateProfileUseCase {
     String? phone,
     String? avatarPath,
     CalorieMode? calorieMode,
+    String? dietNotes,
   }) {
     return _repository.updateProfile(
       userId: userId,
@@ -21,6 +22,7 @@ class UpdateProfileUseCase {
       phone: phone,
       avatarPath: avatarPath,
       calorieMode: calorieMode,
+      dietNotes: dietNotes,
     );
   }
 }

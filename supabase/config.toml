@@ -47,6 +47,9 @@ enabled = true
 [functions.analyze-food]
 verify_jwt = true
 
+[functions.suggest-meals]
+verify_jwt = true
+
 [functions.cleanup-orphaned-food-images]
 # Invoked only by the pg_cron job via a shared `x-cron-secret` header, never
 # by an app user - there's no user JWT to verify.

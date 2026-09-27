@@ -19,6 +19,7 @@ class UserProfileDto {
     this.goal,
     this.onboardingCompletedAt,
     this.calorieMode = CalorieMode.fixed,
+    this.dietNotes,
   });
 
   factory UserProfileDto.fromMap(Map<String, dynamic> map) {
@@ -44,6 +45,7 @@ class UserProfileDto {
           ? null
           : DateTime.parse(map['onboarding_completed_at'] as String),
       calorieMode: CalorieMode.fromDbValue(map['calorie_mode'] as String?),
+      dietNotes: map['diet_notes'] as String?,
     );
   }
 
@@ -60,6 +62,7 @@ class UserProfileDto {
   final Goal? goal;
   final DateTime? onboardingCompletedAt;
   final CalorieMode calorieMode;
+  final String? dietNotes;
 
   UserProfile toEntity() => UserProfile(
     username: username,
@@ -75,6 +78,7 @@ class UserProfileDto {
     goal: goal,
     onboardingCompletedAt: onboardingCompletedAt,
     calorieMode: calorieMode,
+    dietNotes: dietNotes,
   );
 
   /// Builds the write payload for `ProfileRemoteDataSource.upsertProfile`.
@@ -103,7 +107,7 @@ class UserProfileDto {
 
   /// Builds a *partial* write payload for `ProfileRemoteDataSource.upsertProfile`
   /// — only [userId] plus whichever of [username]/[fullName]/[phone]/
-  /// [avatarPath]/[calorieMode] are non-null are included, so an edit to one
+  /// [avatarPath]/[calorieMode]/[dietNotes] are non-null are included, so an edit to one
   /// field never overwrites the others with `null`.
   static Map<String, dynamic> toProfileUpdateMap({
     required String userId,
@@ -112,6 +116,7 @@ class UserProfileDto {
     String? phone,
     String? avatarPath,
     CalorieMode? calorieMode,
+    String? dietNotes,
   }) {
     return {
       'id': userId,
@@ -120,6 +125,7 @@ class UserProfileDto {
       if (phone != null) 'phone': phone,
       if (avatarPath != null) 'avatar_path': avatarPath,
       if (calorieMode != null) 'calorie_mode': calorieMode.dbValue,
+      if (dietNotes != null) 'diet_notes': dietNotes,
     };
   }
 }

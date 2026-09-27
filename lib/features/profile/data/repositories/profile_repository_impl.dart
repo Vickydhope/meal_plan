@@ -65,6 +65,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
     String? phone,
     String? avatarPath,
     CalorieMode? calorieMode,
+    String? dietNotes,
   }) async {
     try {
       await _dataSource.upsertProfile(
@@ -75,6 +76,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
           phone: phone,
           avatarPath: avatarPath,
           calorieMode: calorieMode,
+          dietNotes: dietNotes,
         ),
       );
     } catch (err) {

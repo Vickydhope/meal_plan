@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/meal_type.dart';
+import '../../domain/entities/pending_meal_analysis.dart';
 import '../providers/meal_log_providers.dart';
 import 'camera_scan/camera_frame.dart';
 import 'camera_scan/fade_slide_in.dart';
@@ -21,13 +22,15 @@ class ScanResultArgs {
     this.imagePath,
     this.description,
     this.barcode,
+    this.suggestion,
     this.mealType,
   }) : assert(
          (imagePath != null ? 1 : 0) +
                  (description != null ? 1 : 0) +
-                 (barcode != null ? 1 : 0) ==
+                 (barcode != null ? 1 : 0) +
+                 (suggestion != null ? 1 : 0) ==
              1,
-         'Exactly one of imagePath, description or barcode',
+         'Exactly one of imagePath, description, barcode or suggestion',
        );
 
   /// Local file path of the photo confirmed on [CameraScanScreen].
@@ -38,6 +41,9 @@ class ScanResultArgs {
 
   /// A scanned packaged-food barcode, looked up instead of analyzed.
   final String? barcode;
+
+  /// A ready-made meal (an AI suggestion) — reviewed as-is, no analysis.
+  final PendingMealAnalysis? suggestion;
 
   /// Overrides the time-of-day default meal type, forwarded from
   /// [CameraScanScreen.initialMealType].
@@ -85,6 +91,8 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
     switch (widget.args) {
       case ScanResultArgs(:final imagePath?, :final mealType):
         notifier.analyzeCapturedPhoto(imagePath, mealType: mealType);
+      case ScanResultArgs(:final suggestion?):
+        notifier.reviewMeal(suggestion);
       case ScanResultArgs(:final barcode?, :final mealType):
         notifier.analyzeBarcode(barcode, mealType: mealType);
       case ScanResultArgs(:final description?, :final mealType):
@@ -235,14 +243,20 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                       sliver: SliverToBoxAdapter(
-                        child: switch (widget.args.barcode) {
-                          final code? => _SourceNote(
+                        child: switch (widget.args) {
+                          ScanResultArgs(:final barcode?) => _SourceNote(
                             icon: LucideIcons.scan_barcode,
-                            text: 'Barcode $code',
+                            text: 'Barcode $barcode',
                           ),
-                          null => _SourceNote(
+                          ScanResultArgs(suggestion: _?) => _SourceNote(
+                            icon: LucideIcons.sparkles,
+                            text:
+                                'Suggested for you — adjust portions '
+                                'before logging.',
+                          ),
+                          _ => _SourceNote(
                             icon: LucideIcons.quote,
-                            text: widget.args.description!,
+                            text: widget.args.description ?? '',
                           ),
                         },
                       ),

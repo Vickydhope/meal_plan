@@ -31,6 +31,7 @@ String _userMessageFor(Object err) => switch (err) {
   // Built from the edge function's own user-facing `error` text.
   FoodAnalysisException(:final message) => message,
   AskAiException(:final message) => message,
+  MealSuggestionException(:final message) => message,
   AuthFailureException(:final message) => message,
   HealthStoreUnavailableException(:final message) => message,
   HealthPermissionDeniedException(:final message) => message,
@@ -63,6 +64,11 @@ class FoodAnalysisException extends AppException {
 }
 
 /// Thrown when the `ask-ai` backend fails.
+/// A `suggest-meals` failure, carrying the function's user-facing message.
+class MealSuggestionException extends AppException {
+  const MealSuggestionException(super.message);
+}
+
 class AskAiException extends AppException {
   const AskAiException(super.message);
 }

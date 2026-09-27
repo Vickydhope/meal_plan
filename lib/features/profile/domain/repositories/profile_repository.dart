@@ -32,6 +32,9 @@ abstract class ProfileRepository {
     String? phone,
     String? avatarPath,
     CalorieMode? calorieMode,
+
+    /// Pass an empty string to clear.
+    String? dietNotes,
   });
 
   /// Stores the device's current time zone, which the backend uses to

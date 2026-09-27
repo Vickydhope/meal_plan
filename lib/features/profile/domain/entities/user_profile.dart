@@ -20,6 +20,7 @@ class UserProfile {
     this.goal,
     this.onboardingCompletedAt,
     this.calorieMode = CalorieMode.fixed,
+    this.dietNotes,
   });
 
   final String? username;
@@ -38,6 +39,10 @@ class UserProfile {
   final Goal? goal;
   final DateTime? onboardingCompletedAt;
   final CalorieMode calorieMode;
+
+  /// Free-text dietary preferences (e.g. "vegetarian, no nuts") that meal
+  /// suggestions respect. `null` or blank when none are set.
+  final String? dietNotes;
 
   bool get hasCompletedOnboarding => onboardingCompletedAt != null;
 }
